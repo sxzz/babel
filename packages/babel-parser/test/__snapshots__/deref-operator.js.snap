@@ -1,0 +1,109 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`deref operator syntax should parse 1`] = `
+Node {
+  "comments": Array [],
+  "end": 9,
+  "errors": Array [],
+  "loc": SourceLocation {
+    "end": Position {
+      "column": 9,
+      "index": 9,
+      "line": 1,
+    },
+    "filename": undefined,
+    "identifierName": undefined,
+    "start": Position {
+      "column": 0,
+      "index": 0,
+      "line": 1,
+    },
+  },
+  "program": Node {
+    "body": Array [
+      Node {
+        "end": 9,
+        "expression": Node {
+          "argument": Node {
+            "end": 9,
+            "loc": SourceLocation {
+              "end": Position {
+                "column": 9,
+                "index": 9,
+                "line": 1,
+              },
+              "filename": undefined,
+              "identifierName": "foo",
+              "start": Position {
+                "column": 6,
+                "index": 6,
+                "line": 1,
+              },
+            },
+            "name": "foo",
+            "start": 6,
+            "type": "Identifier",
+          },
+          "end": 9,
+          "loc": SourceLocation {
+            "end": Position {
+              "column": 9,
+              "index": 9,
+              "line": 1,
+            },
+            "filename": undefined,
+            "identifierName": undefined,
+            "start": Position {
+              "column": 0,
+              "index": 0,
+              "line": 1,
+            },
+          },
+          "operator": "deref",
+          "prefix": true,
+          "start": 0,
+          "type": "UnaryExpression",
+        },
+        "loc": SourceLocation {
+          "end": Position {
+            "column": 9,
+            "index": 9,
+            "line": 1,
+          },
+          "filename": undefined,
+          "identifierName": undefined,
+          "start": Position {
+            "column": 0,
+            "index": 0,
+            "line": 1,
+          },
+        },
+        "start": 0,
+        "type": "ExpressionStatement",
+      },
+    ],
+    "directives": Array [],
+    "end": 9,
+    "interpreter": null,
+    "loc": SourceLocation {
+      "end": Position {
+        "column": 9,
+        "index": 9,
+        "line": 1,
+      },
+      "filename": undefined,
+      "identifierName": undefined,
+      "start": Position {
+        "column": 0,
+        "index": 0,
+        "line": 1,
+      },
+    },
+    "sourceType": "module",
+    "start": 0,
+    "type": "Program",
+  },
+  "start": 0,
+  "type": "File",
+}
+`;

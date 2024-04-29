@@ -269,6 +269,7 @@ export const tt = {
   _true: createKeyword("true", { startsExpr }),
   _false: createKeyword("false", { startsExpr }),
   _typeof: createKeyword("typeof", { beforeExpr, prefix, startsExpr }),
+  _deref: createKeyword("deref", { beforeExpr, prefix, startsExpr }),
   _void: createKeyword("void", { beforeExpr, prefix, startsExpr }),
   _delete: createKeyword("delete", { beforeExpr, prefix, startsExpr }),
   // start: isLoop
