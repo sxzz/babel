@@ -225,7 +225,7 @@ export const tt = {
   // startsExpr: required by v8intrinsic plugin
   modulo: createToken("%", { binop: 10, startsExpr }),
   // unset `beforeExpr` as it can be `function *`
-  star: createToken("*", { binop: 10 }),
+  star: createToken("*", { binop: 10, prefix, startsExpr }),
   slash: createBinop("/", 10),
   exponent: createToken("**", {
     beforeExpr,

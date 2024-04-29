@@ -592,6 +592,7 @@ export type UnaryOperator =
   | "+"
   | "!"
   | "~"
+  | "*"
   | "deref"
   | "typeof"
   | "void"

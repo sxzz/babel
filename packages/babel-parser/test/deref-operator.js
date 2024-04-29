@@ -5,7 +5,11 @@ function getParser(code) {
 }
 
 describe("deref operator syntax", function () {
-  it("should parse", function () {
+  it("should parse deref", function () {
     expect(getParser(`deref foo`)()).toMatchSnapshot();
+  });
+
+  it("should parse asterisk", function () {
+    expect(getParser(`*foo`)()).toMatchSnapshot();
   });
 });
