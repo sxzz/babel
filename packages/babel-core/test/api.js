@@ -367,6 +367,7 @@ describe("api", function () {
 
     let prereleaseHelperAvailable = true;
     let stableHelperAvailable = true;
+    let matchingStableHelperAvailable = false;
     let nextPrereleaseHelperAvailable = true;
 
     transformSync("", {
@@ -379,6 +380,10 @@ describe("api", function () {
                 "7.0.0-beta.0",
               );
               stableHelperAvailable = this.availableHelper("decorate", "7.0.0");
+              matchingStableHelperAvailable = this.availableHelper(
+                "decorate",
+                "7.1.5",
+              );
               nextPrereleaseHelperAvailable = this.availableHelper(
                 "decorate",
                 "9.0.0-alpha.0",
@@ -391,6 +396,7 @@ describe("api", function () {
 
     expect(prereleaseHelperAvailable).toBe(false);
     expect(stableHelperAvailable).toBe(false);
+    expect(matchingStableHelperAvailable).toBe(true);
     expect(nextPrereleaseHelperAvailable).toBe(false);
   });
 
