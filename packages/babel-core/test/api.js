@@ -2,6 +2,7 @@ import * as babel from "../lib/index.js";
 import { TraceMap, originalPositionFor } from "@jridgewell/trace-mapping";
 import path from "node:path";
 import generator from "@babel/generator";
+import { rangesIntersect } from "verkit";
 
 import _Plugin from "../lib/config/plugin.js";
 const Plugin = _Plugin.default || _Plugin;
@@ -359,6 +360,35 @@ describe("api", function () {
         plugins: [pluginSyntaxJSX, false],
       });
     }).toThrow(/.plugins\[1\] must be a string, object, function/);
+  });
+
+  it("treats concrete prerelease helper versions as ranges", function () {
+    expect(rangesIntersect("<7.0.1", "^7.0.0-beta.0")).toBe(true);
+
+    let prereleaseHelperAvailable = true;
+    let nextPrereleaseHelperAvailable = true;
+
+    transformSync("", {
+      plugins: [
+        function () {
+          return {
+            pre() {
+              prereleaseHelperAvailable = this.availableHelper(
+                "decorate",
+                "7.0.0-beta.0",
+              );
+              nextPrereleaseHelperAvailable = this.availableHelper(
+                "decorate",
+                "9.0.0-alpha.0",
+              );
+            },
+          };
+        },
+      ],
+    });
+
+    expect(prereleaseHelperAvailable).toBe(false);
+    expect(nextPrereleaseHelperAvailable).toBe(false);
   });
 
   it("options merge backwards", async function () {
@@ -1040,7 +1070,6 @@ describe("api", function () {
   });
 
   itBabel9("the version ends with 999999999", () => {
-    // eslint-disable-next-line jest/no-conditional-expect
     expect(babel.version.endsWith("999999999")).toBe(true);
   });
 });

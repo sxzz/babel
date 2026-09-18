@@ -170,7 +170,10 @@ export function normalizeCoreJSOption(
     rawVersion = corejs as false | string | number | undefined | null;
   }
 
-  const coercedVersion = rawVersion ? coerce(String(rawVersion)) : null;
+  const coercedVersion =
+    rawVersion === false || rawVersion == null
+      ? null
+      : coerce(String(rawVersion));
   const version = coercedVersion ? parse(coercedVersion) : false;
 
   if (version) {
