@@ -1,4 +1,4 @@
-import { coerce, parse, type SemVer } from "verkit";
+import { coerce, type SemVer } from "verkit";
 import corejs3Polyfills from "core-js-compat/data.json" with { type: "json" };
 import { plugins as pluginsList } from "./plugins-compat-data.ts";
 import moduleTransformations from "./module-transformations.ts";
@@ -174,7 +174,7 @@ export function normalizeCoreJSOption(
     rawVersion === false || rawVersion == null
       ? null
       : coerce(String(rawVersion));
-  const version = coercedVersion ? parse(coercedVersion) : false;
+  const version = coercedVersion || false;
 
   if (version) {
     if (useBuiltIns) {

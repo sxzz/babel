@@ -131,10 +131,10 @@ function assertVersion(range: string | number): void {
     throw new Error("Expected string or integer value.");
   }
 
-  // We want "*" to also allow any pre-release, but we do not pass
+  // We want wildcard ranges to also allow any pre-release, but we do not pass
   // the includePrerelease option to satisfies because we
   // do not want ^7.0.0 to match 8.0.0-alpha.1.
-  if (range === "*" || satisfies(coreVersion, range)) return;
+  if (/^[*x]$/i.test(range) || satisfies(coreVersion, range)) return;
 
   const message =
     `Requires Babel "${range}", but was loaded with "${coreVersion}". ` +

@@ -366,6 +366,7 @@ describe("api", function () {
     expect(rangesIntersect("<7.0.1", "^7.0.0-beta.0")).toBe(true);
 
     let prereleaseHelperAvailable = true;
+    let stableHelperAvailable = true;
     let nextPrereleaseHelperAvailable = true;
 
     transformSync("", {
@@ -377,6 +378,7 @@ describe("api", function () {
                 "decorate",
                 "7.0.0-beta.0",
               );
+              stableHelperAvailable = this.availableHelper("decorate", "7.0.0");
               nextPrereleaseHelperAvailable = this.availableHelper(
                 "decorate",
                 "9.0.0-alpha.0",
@@ -388,6 +390,7 @@ describe("api", function () {
     });
 
     expect(prereleaseHelperAvailable).toBe(false);
+    expect(stableHelperAvailable).toBe(false);
     expect(nextPrereleaseHelperAvailable).toBe(false);
   });
 
