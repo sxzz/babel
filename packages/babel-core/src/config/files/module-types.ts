@@ -3,8 +3,8 @@ import type { Handler } from "gensync";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
-import semver from "semver";
-import buildDebug from "debug";
+import { createDebug } from "obug";
+import { satisfies } from "verkit";
 
 import { endHiddenCallStack } from "../../errors/rewrite-stack-trace.ts";
 import ConfigError from "../../errors/config-error.ts";
@@ -12,11 +12,11 @@ import ConfigError from "../../errors/config-error.ts";
 import type { InputOptions } from "../index.ts";
 import { transformFileSync } from "../../transform-file.ts";
 
-const debug = buildDebug("babel:config:loading:files:module-types");
+const debug = createDebug("babel:config:loading:files:module-types");
 
 const require = createRequire(import.meta.url);
 
-export const supportsESM = semver.satisfies(
+export const supportsESM = satisfies(
   process.versions.node,
   // older versions, starting from 10, support the dynamic
   // import syntax but always return a rejected promise.

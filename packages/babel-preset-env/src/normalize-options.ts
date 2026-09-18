@@ -1,4 +1,4 @@
-import semver, { type SemVer } from "semver";
+import { coerce, parse, type SemVer } from "verkit";
 import corejs3Polyfills from "core-js-compat/data.json" with { type: "json" };
 import { plugins as pluginsList } from "./plugins-compat-data.ts";
 import moduleTransformations from "./module-transformations.ts";
@@ -170,7 +170,8 @@ export function normalizeCoreJSOption(
     rawVersion = corejs as false | string | number | undefined | null;
   }
 
-  const version = rawVersion ? semver.coerce(String(rawVersion)) : false;
+  const coercedVersion = rawVersion ? coerce(String(rawVersion)) : null;
+  const version = coercedVersion ? parse(coercedVersion) : false;
 
   if (version) {
     if (useBuiltIns) {
