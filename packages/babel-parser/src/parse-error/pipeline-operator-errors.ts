@@ -16,9 +16,6 @@ export type UnparenthesizedPipeBodyTypes = GetSetMemberType<
 >;
 
 export default {
-  // This error is only used by the smart-mix proposal
-  PipeBodyIsTighter:
-    "Unexpected yield after pipeline body; any yield expression acting as Hack-style pipe body must be parenthesized due to its loose operator precedence.",
   PipeTopicRequiresHackPipes:
     'Topic references are only supported when using the `"proposal": "hack"` version of the pipeline proposal.',
   PipeTopicUnbound:
@@ -31,4 +28,6 @@ export default {
     `Hack-style pipe body cannot be an unparenthesized ${toNodeDescription({
       type,
     })}; please wrap it in parentheses.`,
+  PipelineUnparenthesized:
+    "Cannot mix binary operator with solo-await F#-style pipeline. Please wrap the pipeline in parentheses.",
 } satisfies ParseErrorTemplates;

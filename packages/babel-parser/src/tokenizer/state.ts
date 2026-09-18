@@ -4,24 +4,10 @@ import { Position } from "../util/location.ts";
 
 import { types as ct, type TokContext } from "./context.ts";
 import { tt, type TokenType } from "./types.ts";
-import type { Errors } from "../parse-error.ts";
-import type { ParseError } from "../parse-error.ts";
+import type { Errors, ParseError } from "../parse-error.ts";
 
 export type DeferredStrictError =
-  | typeof Errors.StrictNumericEscape
-  | typeof Errors.StrictOctalLiteral;
-
-type TopicContextState = {
-  // When a topic binding has been currently established,
-  // then this is 1. Otherwise, it is 0. This is forwards compatible
-  // with a future plugin for multiple lexical topics.
-  maxNumOfResolvableTopics: number;
-  // When a topic binding has been currently established, and if that binding
-  // has been used as a topic reference `#`, then this is 0. Otherwise, it is
-  // `null`. This is forwards compatible with a future plugin for multiple
-  // lexical topics.
-  maxTopicIndex: null | 0;
-};
+  typeof Errors.StrictNumericEscape | typeof Errors.StrictOctalLiteral;
 
 export const enum LoopLabelKind {
   Loop = 1,
@@ -68,10 +54,7 @@ export default class State {
     );
   }
 
-  errors: ParseError<any>[] = [];
-
-  // Used to signify the start of a potential arrow function
-  potentialArrowAt: number = -1;
+  errors: ParseError[] = [];
 
   // Used to signify the start of an expression which looks like a
   // typed arrow function, but it isn't
@@ -88,23 +71,24 @@ export default class State {
   noArrowParamsConversionAt: number[] = [];
 
   // Flags to track
-  @bit accessor maybeInArrowParameters = false;
+
+  /**
+   * Track whether the current start is the start of an AssignmentExpression production.
+   * The ArrowFunctionExpression and AsyncArrowFunctionExpression productions can only be
+   * parsed if this is true.
+   */
+  @bit accessor canStartArrow = false;
   @bit accessor inType = false;
   @bit accessor noAnonFunctionType = false;
   @bit accessor hasFlowComment = false;
   @bit accessor isAmbientContext = false;
   @bit accessor inAbstractClass = false;
   @bit accessor inDisallowConditionalTypesContext = false;
+  @bit accessor inConditionalConsequent = false;
 
   // For the Hack-style pipelines plugin
-  topicContext: TopicContextState = {
-    maxNumOfResolvableTopics: 0,
-    maxTopicIndex: null,
-  };
-
-  // For the F#-style pipelines plugin
-  @bit accessor soloAwait = false;
-  @bit accessor inFSharpPipelineDirectBody = false;
+  @bit accessor inHackPipelineBody = false;
+  @bit accessor seenTopicReference = false;
 
   // Labels in scope.
   labels: {
@@ -190,10 +174,8 @@ export default class State {
     state.startLoc = this.startLoc;
     state.endLoc = this.endLoc;
     state.errors = this.errors.slice();
-    state.potentialArrowAt = this.potentialArrowAt;
     state.noArrowAt = this.noArrowAt.slice();
     state.noArrowParamsConversionAt = this.noArrowParamsConversionAt.slice();
-    state.topicContext = this.topicContext;
     state.labels = this.labels.slice();
     state.commentsLen = this.commentsLen;
     state.commentStack = this.commentStack.slice();

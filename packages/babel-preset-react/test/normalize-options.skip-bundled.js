@@ -1,5 +1,4 @@
-import _normalizeOptions from "../lib/normalize-options.js";
-const normalizeOptions = _normalizeOptions.default || _normalizeOptions;
+import normalizeOptions from "../lib/normalize-options.js";
 
 describe("normalize options", () => {
   describe("Babel 8", () => {
@@ -8,14 +7,16 @@ describe("normalize options", () => {
         "@babel/preset-react: 'throwIfNamespaces' is not a valid top-level option.\n- Did you mean 'throwIfNamespace'?",
       );
     });
-    it.each(["development", "pure", "throwIfNamespace"])(
-      "should throw when `%p` is not a boolean",
-      optionName => {
-        expect(() => normalizeOptions({ [optionName]: 0 })).toThrow(
-          `@babel/preset-react: '${optionName}' option must be a boolean.`,
-        );
-      },
-    );
+    it.each([
+      "development",
+      "developmentSourceSelf",
+      "pure",
+      "throwIfNamespace",
+    ])("should throw when `%p` is not a boolean", optionName => {
+      expect(() => normalizeOptions({ [optionName]: 0 })).toThrow(
+        `@babel/preset-react: '${optionName}' option must be a boolean.`,
+      );
+    });
     it.each(["importSource", "pragma", "pragmaFrag", "runtime"])(
       "should throw when `%p` is not a string",
       optionName => {
@@ -27,14 +28,14 @@ describe("normalize options", () => {
     it("should throw on Babel 7 'useBuiltIns' option", () => {
       expect(() => normalizeOptions({ useBuiltIns: true }))
         .toThrowErrorMatchingInlineSnapshot(`
-        "@babel/preset-react: Since \\"useBuiltIns\\" is removed in Babel 8, you can remove it from the config.
+        "@babel/preset-react: Since "useBuiltIns" is removed in Babel 8, you can remove it from the config.
         - Babel 8 now transforms JSX spread to object spread. If you need to transpile object spread with
         \`useBuiltIns: true\`, you can use the following config
         {
-          \\"plugins\\": [
-            [\\"@babel/plugin-transform-object-rest-spread\\", { \\"loose\\": true, \\"useBuiltIns\\": true }]
+          "plugins": [
+            ["@babel/plugin-transform-object-rest-spread", { "loose": true, "useBuiltIns": true }]
           ],
-          \\"presets\\": [\\"@babel/preset-react\\"]
+          "presets": ["@babel/preset-react"]
         }"
       `);
     });
@@ -42,7 +43,7 @@ describe("normalize options", () => {
       expect(() =>
         normalizeOptions({ useSpread: true }),
       ).toThrowErrorMatchingInlineSnapshot(
-        `"@babel/preset-react: Since Babel 8, an inline object with spread elements is always used, and the \\"useSpread\\" option is no longer available. Please remove it from your config."`,
+        `"@babel/preset-react: Since Babel 8, an inline object with spread elements is always used, and the "useSpread" option is no longer available. Please remove it from your config."`,
       );
     });
     it("should throw on unknown 'runtime' option", () => {
@@ -57,8 +58,9 @@ describe("normalize options", () => {
     });
     it("default values", () => {
       expect(normalizeOptions({})).toMatchInlineSnapshot(`
-        Object {
+        {
           "development": undefined,
+          "developmentSourceSelf": false,
           "importSource": "react",
           "pragma": undefined,
           "pragmaFrag": undefined,
@@ -68,8 +70,9 @@ describe("normalize options", () => {
         }
       `);
       expect(normalizeOptions({ runtime: "classic" })).toMatchInlineSnapshot(`
-        Object {
+        {
           "development": undefined,
+          "developmentSourceSelf": false,
           "importSource": undefined,
           "pragma": "React.createElement",
           "pragmaFrag": "React.Fragment",

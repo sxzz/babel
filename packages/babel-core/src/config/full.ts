@@ -53,11 +53,10 @@ export type ResolvedConfig = {
 };
 
 export type { Plugin };
-export type PluginPassList = Plugin[];
-export type PluginPasses = PluginPassList[];
+export type PluginPasses = Plugin[][];
 
 export default gensync(function* loadFullConfig(
-  inputOpts: InputOptions,
+  inputOpts: InputOptions | null | undefined,
 ): Handler<ResolvedConfig | null> {
   const result = yield* loadPrivatePartialConfig(inputOpts);
   if (!result) {
@@ -492,7 +491,7 @@ function* loadPresetDescriptor(
 function chainMaybeAsync<Args extends any[], R extends void | Promise<void>>(
   a: undefined | ((...args: Args) => R),
   b: undefined | ((...args: Args) => R),
-): (...args: Args) => R {
+): ((...args: Args) => R) | undefined {
   if (!a) return b;
   if (!b) return a;
 

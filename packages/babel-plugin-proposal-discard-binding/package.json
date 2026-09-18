@@ -1,6 +1,6 @@
 {
   "name": "@babel/plugin-proposal-discard-binding",
-  "version": "7.28.0",
+  "version": "8.0.6",
   "description": "Transform discard binding proposal",
   "repository": {
     "type": "git",
@@ -20,7 +20,7 @@
     "@babel/helper-validator-option": "workspace:^"
   },
   "peerDependencies": {
-    "@babel/core": "^7.17.0"
+    "@babel/core": "^8.0.0"
   },
   "devDependencies": {
     "@babel/core": "workspace:^",
@@ -28,7 +28,7 @@
   },
   "homepage": "https://babel.dev/docs/en/next/babel-plugin-proposal-discard-binding",
   "engines": {
-    "node": "^20.19.0 || >=22.12.0"
+    "node": "^22.18.0 || >=24.11.0"
   },
   "author": "The Babel Team (https://babel.dev/team)",
   "exports": {

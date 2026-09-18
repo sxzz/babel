@@ -6,12 +6,11 @@ import pluginTransformTypeScript from "@babel/plugin-transform-typescript";
 import { commonJS } from "$repo-utils";
 import { cloneNode } from "@babel/types";
 
-import _generate from "../lib/index.js";
-const generate = _generate.default || _generate;
+import generate from "../lib/index.js";
 
 const { __dirname } = commonJS(import.meta.url);
 
-const suites = (fixtures.default || fixtures)(path.join(__dirname, "fixtures"));
+const suites = fixtures(path.join(__dirname, "fixtures"));
 
 const FAILURES = [
   // Todo: support trailing comments spanned across trailing comma
@@ -22,9 +21,6 @@ const FAILURES = [
   // or about an old decorators version
   "comments/decorators-after-export-to-before/input.js",
   "comments/decorators-before-export-to-after/input.js",
-  "decorators/decorator-call-expression/input.js",
-  "decorators/decorator-parenthesized-expression/input.js",
-  "decorators/decorator-parenthesized-expression-createParenthesizedExpression/input.js",
   "decoratorsBeforeExport/false-to-true/input.js",
   "decoratorsBeforeExport/true-to-false/input.js",
 
@@ -152,6 +148,7 @@ describe("experimental_preserveFormat", () => {
       const out = babel.transformSync(input, {
         configFile: false,
         plugins: [pluginTransformTypeScript],
+        sourceMaps: true,
         parserOpts: {
           createParenthesizedExpressions: true,
           tokens: true,
@@ -163,6 +160,10 @@ describe("experimental_preserveFormat", () => {
       });
 
       expect(out.code.trimEnd()).toBe(expected.trimEnd());
+
+      expect(out.map.mappings).toMatchInlineSnapshot(
+        `";QACQ,MAAM,EAAE,EAAE,CAAC,SAAS;kCACM,UAAU"`,
+      );
     });
 
     it("identifier renaming", () => {

@@ -121,8 +121,7 @@ export function transformOptionalChain(
 
   for (let i = optionals.length - 1; i >= 0; i--) {
     const node = optionals[i] as unknown as
-      | t.MemberExpression
-      | t.CallExpression;
+      t.MemberExpression | t.CallExpression;
 
     const isCall = t.isCallExpression(node);
 
@@ -256,7 +255,7 @@ export function transform(
       t.booleanLiteral(true),
     );
   } else {
-    let wrapLast;
+    let wrapLast: ((value: t.Expression) => t.Expression) | undefined;
     if (
       parentPath.isCallExpression({ callee: maybeWrapped.node }) &&
       // note that the first condition must implies that `path.optional` is `true`,
@@ -264,19 +263,19 @@ export function transform(
       path.isOptionalMemberExpression()
     ) {
       // Ensure (a?.b)() has proper `this`
-      wrapLast = (replacement: t.MemberExpression) => {
+      wrapLast = ((replacement: t.MemberExpression) => {
         // `(a?.b)()` to `(a == null ? undefined : a.b.bind(a))()`
         // object must not be Super as super?.foo is invalid
 
         const object = skipTransparentExprWrapperNodes(
           replacement.object,
         ) as t.Expression;
-        let baseRef: t.Expression;
+        let baseRef: t.Expression | undefined;
         if (!assumptions.pureGetters || !isSimpleMemberExpression(object)) {
           // memoize the context object when getters are not always pure
           // or the object is not a simple member expression
           // `(a?.b.c)()` to `(a == null ? undefined : (_a$b = a.b).c.bind(_a$b))()`
-          baseRef = scope.maybeGenerateMemoised(object);
+          baseRef = scope.maybeGenerateMemoised(object)!;
           if (baseRef) {
             replacement.object = t.assignmentExpression("=", baseRef, object);
           }
@@ -285,7 +284,7 @@ export function transform(
           t.memberExpression(replacement, t.identifier("bind")),
           [t.cloneNode(baseRef ?? object)],
         );
-      };
+      }) as (value: t.Expression) => t.Expression;
     }
 
     transformOptionalChain(
@@ -294,7 +293,7 @@ export function transform(
       path,
       willPathCastToBoolean(maybeWrapped)
         ? t.booleanLiteral(false)
-        : scope.buildUndefinedNode(),
+        : t.buildUndefinedNode(),
       wrapLast,
     );
   }

@@ -1,4 +1,3 @@
-/* eslint-env jest */
 import * as babel from "@babel/core";
 import {
   buildExternalHelpers,
@@ -20,7 +19,7 @@ import assert from "node:assert";
 import fs, { readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
-import LruCache from "lru-cache";
+import flru from "flru";
 import { fileURLToPath } from "node:url";
 import { diff } from "jest-diff";
 import type { ChildProcess } from "node:child_process";
@@ -42,10 +41,9 @@ type Module = {
 
 const EXTERNAL_HELPERS_VERSION = "7.100.0";
 
-const cachedScripts = new LruCache<
-  string,
-  { code: string; cachedData?: Buffer }
->({ max: 10 });
+const cachedScripts = flru<{ code: string; cachedData: Buffer | undefined }>(
+  10,
+);
 const contextModuleCache = new WeakMap();
 
 // We never want our tests to accidentally load the root
@@ -190,12 +188,13 @@ let sharedTestContext: vm.Context;
 export function runCodeInTestContext(
   code: string,
   opts: {
-    filename: string;
+    filename: string | URL;
     timeout?: number;
   },
   context = (sharedTestContext ??= createTestContext()),
 ) {
-  const filename = opts.filename;
+  const filename =
+    opts.filename instanceof URL ? fileURLToPath(opts.filename) : opts.filename;
   const dirname = path.dirname(filename);
   const moduleCache = contextModuleCache.get(context);
   const req = (id: string) =>
@@ -208,7 +207,7 @@ export function runCodeInTestContext(
 
   const oldCwd = process.cwd();
   try {
-    if (opts.filename) process.chdir(path.dirname(opts.filename));
+    if (filename) process.chdir(path.dirname(filename));
 
     // Expose the test options as "opts", but otherwise run the test in a CommonJS-like environment.
     // Note: This isn't doing .call(module.exports, ...) because some of our tests currently
@@ -268,7 +267,7 @@ async function run(task: Test) {
   function getOpts(self: TestFile): any {
     const newOpts = {
       ast: true,
-      cwd: path.dirname(self.loc),
+      cwd: path.dirname(self.loc!),
       filename: self.loc,
       filenameRelative: self.filename,
       sourceFileName: self.filename,
@@ -279,14 +278,14 @@ async function run(task: Test) {
       ...opts,
     };
 
-    return resolveOptionPluginOrPreset(newOpts, optionsDir);
+    return resolveOptionPluginOrPreset(newOpts, optionsDir!);
   }
 
   let execCode = exec.code;
-  let result: FileResult;
+  let result: FileResult | undefined;
   let resultExec;
 
-  let execErr: Error;
+  let execErr: Error | undefined;
 
   if (execCode) {
     const context = createTestContext();
@@ -294,12 +293,14 @@ async function run(task: Test) {
 
     // Ignore Babel logs of exec.js files.
     // They will be validated in input/output files.
-    ({ result } = await maybeMockConsole(validateLogs, () =>
-      babel.transformAsync(execCode, execOpts),
-    ));
+    result = (
+      await maybeMockConsole(validateLogs, async () =>
+        babel.transformAsync(execCode!, execOpts),
+      )
+    ).result!;
 
-    checkDuplicateNodes(result.ast);
-    execCode = result.code;
+    checkDuplicateNodes(result.ast!);
+    execCode = result.code!;
 
     try {
       resultExec = runCodeInTestContext(execCode, execOpts, context);
@@ -318,26 +319,25 @@ async function run(task: Test) {
   const inputCode = actual.code;
   const expectedCode = expected.code;
   if (!execCode || inputCode) {
-    let actualLogs;
+    const res = await maybeMockConsole(validateLogs, () =>
+      babel.transformAsync(inputCode!, getOpts(actual)),
+    );
+    result = res.result!;
 
-    ({ result, actualLogs } = await maybeMockConsole(validateLogs, () =>
-      babel.transformAsync(inputCode, getOpts(actual)),
-    ));
-
-    const outputCode = normalizeOutput(result.code, {
+    const outputCode = normalizeOutput(result.code!, {
       normalizePathSeparator: true,
     });
 
-    checkDuplicateNodes(result.ast);
+    checkDuplicateNodes(result.ast!);
     if (!ignoreOutput) {
       if (
-        !expected.code &&
+        !expectedCode &&
         outputCode &&
         !opts.throws &&
-        fs.statSync(path.dirname(expected.loc)).isDirectory() &&
+        fs.statSync(path.dirname(expected.loc!)).isDirectory() &&
         !process.env.CI
       ) {
-        const expectedFile = expected.loc.replace(
+        const expectedFile = expected.loc!.replace(
           /\.m?js$/,
           result.sourceType === "module" ? ".mjs" : ".js",
         );
@@ -347,11 +347,11 @@ async function run(task: Test) {
 
         if (expected.loc !== expectedFile) {
           try {
-            fs.unlinkSync(expected.loc);
+            fs.unlinkSync(expected.loc!);
           } catch (_) {}
         }
       } else {
-        validateFile(outputCode, expected.loc, expectedCode);
+        validateFile(outputCode, expected.loc!, expectedCode!);
 
         if (inputCode) {
           expect(expected.loc).toMatch(
@@ -368,14 +368,14 @@ async function run(task: Test) {
       };
 
       validateFile(
-        normalizeOutput(actualLogs.stdout, normalizationOpts),
-        stdout.loc,
-        stdout.code,
+        normalizeOutput(res.actualLogs.stdout, normalizationOpts),
+        stdout.loc!,
+        stdout.code!,
       );
       validateFile(
-        normalizeOutput(actualLogs.stderr, normalizationOpts),
-        stderr.loc,
-        stderr.code,
+        normalizeOutput(res.actualLogs.stderr, normalizationOpts),
+        stderr.loc!,
+        stderr.code!,
       );
     }
   }
@@ -385,7 +385,7 @@ async function run(task: Test) {
   }
 
   if (task.validateSourceMapVisual === true) {
-    const visual = visualizeSourceMap(result.code, result.map);
+    const visual = visualizeSourceMap(result!.code!, result!.map);
     try {
       expect(visual).toEqual(task.sourceMapVisual.code);
     } catch (e) {
@@ -401,7 +401,7 @@ async function run(task: Test) {
 
   if (opts.sourceMaps === true) {
     try {
-      expect(result.map).toEqual(task.sourceMap);
+      expect(result!.map).toEqual(task.sourceMap);
     } catch (e) {
       if (!process.env.OVERWRITE && task.sourceMap) throw e;
 
@@ -410,7 +410,7 @@ async function run(task: Test) {
       console.log(`Updated test file: ${task.sourceMapFile.loc}`);
       fs.writeFileSync(
         task.sourceMapFile.loc,
-        JSON.stringify(result.map, null, 2),
+        JSON.stringify(result!.map, null, 2),
       );
     }
   }
@@ -441,10 +441,6 @@ function validateFile(
   }
 }
 
-function escapeRegExp(string: string) {
-  return string.replace(/[|\\{}()[\]^$+*?.]/g, "\\$&");
-}
-
 function normalizeOutput(
   code: string,
   { normalizePathSeparator = false } = {},
@@ -458,20 +454,16 @@ function normalizeOutput(
     .trim()
     // (non-win32) /foo/babel/packages -> <CWD>/packages
     // (win32) C:\foo\babel\packages -> <CWD>\packages
-    .replace(new RegExp(escapeRegExp(dir), "g"), symbol);
+    .replaceAll(dir, symbol);
   if (process.platform === "win32") {
     result = result
       // C:/foo/babel/packages -> <CWD>/packages
-      .replace(new RegExp(escapeRegExp(dir.replace(/\\/g, "/")), "g"), symbol)
+      .replaceAll(dir.replaceAll("\\", "/"), symbol)
       // C:\\foo\\babel\\packages -> <CWD>\\packages (in js string literal)
-      .replace(
-        new RegExp(escapeRegExp(dir.replace(/\\/g, "\\\\")), "g"),
-        symbol,
-      );
+      .replaceAll(dir.replaceAll("\\", "\\\\"), symbol);
     if (normalizePathSeparator) {
-      result = result.replace(
-        new RegExp(`${escapeRegExp(symbol)}[\\w\\\\/.-]+`, "g"),
-        path => path.replace(/\\\\?/g, "/"),
+      result = result.replaceAll(/<CWD>[\w\\/.-]+/g, path =>
+        path.replaceAll(/\\\\?/g, "/"),
       );
     }
   }
@@ -485,7 +477,7 @@ export type SuiteOptions = {
 };
 
 export default function (
-  fixturesLoc: string,
+  fixturesLoc: string | URL,
   name: string,
   suiteOpts: SuiteOptions = {},
   taskOpts: TaskOptions = {},
@@ -497,17 +489,6 @@ export default function (
     if (suiteOpts.ignoreSuites?.includes(testSuite.title)) continue;
 
     describe(name + "/" + testSuite.title, function () {
-      if (
-        !process.env.IS_PUBLISH &&
-        process.env.TEST_babel7plugins_babel8core
-      ) {
-        // Make sure that the ESM version of @babel/core is always loaded
-        // for babel7-8 interop tests.
-        // In `eval` so that it doesn't cause a syntax error when running
-        // tests in old Node.js.
-        beforeAll(() => eval('import("@babel/core")').catch(console.error));
-      }
-
       for (const task of testSuite.tests) {
         if (
           suiteOpts.ignoreTasks?.includes(task.title) ||
@@ -579,16 +560,16 @@ export type ProcessTestOpts = {
   executor?: string;
   ipc?: boolean;
   ipcMessage?: string;
-  stdout?: string;
-  stderr?: string;
-  stdin?: string;
-  stdoutPath?: string;
-  stderrPath?: string;
+  stdout: string;
+  stderr: string;
+  stdin: string;
+  stdoutPath: string;
+  stderrPath: string;
   stdoutContains?: boolean;
   stderrContains?: boolean;
-  testLoc?: string;
-  outFiles?: Record<string, string>;
-  inFiles?: Record<string, string>;
+  testLoc: string;
+  outFiles: Record<string, string>;
+  inFiles: Record<string, string>;
   noBabelrc?: boolean;
   minNodeVersion?: number;
   env?: Record<string, string>;
@@ -615,10 +596,9 @@ export type ProcessTestAfterHook = (
   stderr: string;
 };
 
-const nodeGte8 = parseInt(process.versions.node, 10) >= 8;
-
 // https://github.com/nodejs/node/issues/11422#issue-208189446
-const tmpDir = realpathSync(os.tmpdir());
+// https://github.com/libuv/libuv/issues/5010#issuecomment-4466710203
+const tmpDir = realpathSync.native(os.tmpdir());
 
 const readDir = function (loc: string, pathFilter: (arg0: string) => boolean) {
   const files: Record<string, string> = {};
@@ -656,6 +636,8 @@ const assertTest = function (
 ) {
   const expectStderr = opts.stderr.trim();
   stderr = stderr.trim();
+  stderr = stderr.replace(/\\\\/g, "/");
+  stderr = stderr.replace(/\\/g, "/");
 
   try {
     if (opts.stderr) {
@@ -675,6 +657,7 @@ const assertTest = function (
 
   const expectStdout = opts.stdout.trim();
   stdout = stdout.trim();
+  stdout = stdout.replace(/\\\\/g, "/");
   stdout = stdout.replace(/\\/g, "/");
 
   try {
@@ -749,11 +732,19 @@ export function buildParallelProcessTests(name: string, tests: ProcessTest[]) {
   };
 }
 
+const rootUrl = new URL("../../..", import.meta.url);
+function resolveRootDirOrRootUrlToken(arg: string) {
+  return arg
+    .replace("<rootDir>", fileURLToPath(rootUrl))
+    .replace("<rootUrl>", rootUrl.href.slice(0, -1));
+}
+
 export function buildProcessTests(
-  dir: string,
+  dir: string | URL,
   beforeHook: ProcessTestBeforeHook,
   afterHook?: ProcessTestAfterHook,
 ) {
+  if (dir instanceof URL) dir = fileURLToPath(dir);
   const tests: ProcessTest[] = [];
 
   fs.readdirSync(dir).forEach(function (suiteName) {
@@ -768,6 +759,14 @@ export function buildProcessTests(
 
       let opts: ProcessTestOpts = {
         args: [],
+        stdout: "",
+        stderr: "",
+        stdin: "",
+        stdoutPath: "",
+        stderrPath: "",
+        testLoc: "",
+        outFiles: {},
+        inFiles: {},
       };
 
       const optionsLoc = path.join(testLoc, "options.json");
@@ -854,20 +853,17 @@ export function buildProcessTests(
           try {
             beforeHook(test, tmpLoc);
 
-            if (test.binLoc === undefined) {
-              throw new Error("test.binLoc is undefined");
+            let args = [];
+            if (opts.executor) {
+              args.push("--require", path.join(dirname, "./exit-loader.cjs"));
+            }
+            if (test.binLoc) {
+              args.push(test.binLoc);
             }
 
-            let args =
-              opts.executor && nodeGte8
-                ? [
-                    "--require",
-                    path.join(dirname, "./exit-loader.cjs"),
-                    test.binLoc,
-                  ]
-                : [test.binLoc];
-
-            args = args.concat(opts.args);
+            args = args
+              .concat(opts.args)
+              .map(arg => resolveRootDirOrRootUrlToken(arg));
             const env = {
               ...process.env,
               FORCE_COLOR: "false",
@@ -880,7 +876,7 @@ export function buildProcessTests(
               env,
               cwd: tmpLoc,
               stdio:
-                (opts.executor && nodeGte8) || opts.ipc
+                opts.executor || opts.ipc
                   ? ["pipe", "pipe", "pipe", "ipc"]
                   : "pipe",
             });
@@ -928,16 +924,16 @@ export function buildProcessTests(
             }
 
             if (opts.stdin) {
-              child.stdin.write(opts.stdin);
-              child.stdin.end();
+              child.stdin!.write(opts.stdin);
+              child.stdin!.end();
             }
 
             const captureOutput = (proc: ChildProcess) => {
-              proc.stderr.on("data", function (chunk) {
+              proc.stderr!.on("data", function (chunk) {
                 stderr += chunk;
               });
 
-              proc.stdout.on("data", function (chunk) {
+              proc.stdout!.on("data", function (chunk) {
                 stdout += chunk;
               });
             };
@@ -947,15 +943,11 @@ export function buildProcessTests(
                 cwd: tmpLoc,
               });
 
-              child.stdout.pipe(executor.stdin);
-              child.stderr.pipe(executor.stdin);
+              child.stdout!.pipe(executor.stdin);
+              child.stderr!.pipe(executor.stdin);
 
               executor.on("close", function () {
-                if (nodeGte8) {
-                  child.send("exit");
-                } else {
-                  child.kill("SIGKILL");
-                }
+                child.send("exit");
               });
 
               captureOutput(executor);

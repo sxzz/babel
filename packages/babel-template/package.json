@@ -1,6 +1,6 @@
 {
   "name": "@babel/template",
-  "version": "7.27.2",
+  "version": "8.0.0",
   "description": "Generate an AST from a string template.",
   "author": "The Babel Team (https://babel.dev/team)",
   "homepage": "https://babel.dev/docs/en/next/babel-template",
@@ -21,7 +21,7 @@
     "@babel/types": "workspace:^"
   },
   "engines": {
-    "node": "^20.19.0 || >=22.12.0"
+    "node": "^22.18.0 || >=24.11.0"
   },
   "exports": {
     ".": {

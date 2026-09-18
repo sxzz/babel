@@ -17,6 +17,7 @@ export interface ExplVisitorBase<S> {
   AssignmentPattern?: ExplVisitNode<S, t.AssignmentPattern>;
   AwaitExpression?: ExplVisitNode<S, t.AwaitExpression>;
   BigIntLiteral?: ExplVisitNode<S, t.BigIntLiteral>;
+  BigIntLiteralTypeAnnotation?: ExplVisitNode<S, t.BigIntLiteralTypeAnnotation>;
   BinaryExpression?: ExplVisitNode<S, t.BinaryExpression>;
   BindExpression?: ExplVisitNode<S, t.BindExpression>;
   BlockStatement?: ExplVisitNode<S, t.BlockStatement>;
@@ -145,12 +146,6 @@ export interface ExplVisitorBase<S> {
   OptionalIndexedAccessType?: ExplVisitNode<S, t.OptionalIndexedAccessType>;
   OptionalMemberExpression?: ExplVisitNode<S, t.OptionalMemberExpression>;
   ParenthesizedExpression?: ExplVisitNode<S, t.ParenthesizedExpression>;
-  PipelineBareFunction?: ExplVisitNode<S, t.PipelineBareFunction>;
-  PipelinePrimaryTopicReference?: ExplVisitNode<
-    S,
-    t.PipelinePrimaryTopicReference
-  >;
-  PipelineTopicExpression?: ExplVisitNode<S, t.PipelineTopicExpression>;
   Placeholder?: ExplVisitNode<S, t.Placeholder>;
   PrivateName?: ExplVisitNode<S, t.PrivateName>;
   Program?: ExplVisitNode<S, t.Program>;
@@ -289,6 +284,7 @@ export interface VisitorBaseNodes<S> {
   AssignmentPattern?: VisitNode<S, t.AssignmentPattern>;
   AwaitExpression?: VisitNode<S, t.AwaitExpression>;
   BigIntLiteral?: VisitNode<S, t.BigIntLiteral>;
+  BigIntLiteralTypeAnnotation?: VisitNode<S, t.BigIntLiteralTypeAnnotation>;
   BinaryExpression?: VisitNode<S, t.BinaryExpression>;
   BindExpression?: VisitNode<S, t.BindExpression>;
   BlockStatement?: VisitNode<S, t.BlockStatement>;
@@ -414,9 +410,6 @@ export interface VisitorBaseNodes<S> {
   OptionalIndexedAccessType?: VisitNode<S, t.OptionalIndexedAccessType>;
   OptionalMemberExpression?: VisitNode<S, t.OptionalMemberExpression>;
   ParenthesizedExpression?: VisitNode<S, t.ParenthesizedExpression>;
-  PipelineBareFunction?: VisitNode<S, t.PipelineBareFunction>;
-  PipelinePrimaryTopicReference?: VisitNode<S, t.PipelinePrimaryTopicReference>;
-  PipelineTopicExpression?: VisitNode<S, t.PipelineTopicExpression>;
   Placeholder?: VisitNode<S, t.Placeholder>;
   PrivateName?: VisitNode<S, t.PrivateName>;
   Program?: VisitNode<S, t.Program>;

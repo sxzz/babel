@@ -48,7 +48,6 @@ import {
   isMetaProperty,
   isPrivateName,
   isExportDeclaration,
-  buildUndefinedNode,
   sequenceExpression,
 } from "@babel/types";
 import * as t from "@babel/types";
@@ -545,7 +544,10 @@ class Scope {
     return uid;
   }
 
-  generateUidBasedOnNode(node: t.Node, defaultName?: string) {
+  generateUidBasedOnNode(
+    node: t.Node | undefined | null,
+    defaultName?: string,
+  ) {
     const parts: NodePart[] = [];
     gatherNodeParts(node, parts);
 
@@ -559,7 +561,10 @@ class Scope {
    * Generate a unique identifier based on a node.
    */
 
-  generateUidIdentifierBasedOnNode(node: t.Node, defaultName?: string) {
+  generateUidIdentifierBasedOnNode(
+    node: t.Node | undefined | null,
+    defaultName?: string,
+  ) {
     return identifier(this.generateUidBasedOnNode(node, defaultName));
   }
 
@@ -573,7 +578,7 @@ class Scope {
    *  - Bound identifiers
    */
 
-  isStatic(node: t.Node): boolean {
+  isStatic(node: t.Node | null): boolean {
     if (isThisExpression(node) || isSuper(node) || isTopicReference(node)) {
       return true;
     }
@@ -638,11 +643,7 @@ class Scope {
     }
   }
 
-  rename(
-    oldName: string,
-    newName? // prettier-ignore
-    /* Babel 7 - block?: t.Pattern | t.Scopable */ :string,
-  ) {
+  rename(oldName: string, newName?: string) {
     const binding = this.getBinding(oldName);
     if (binding) {
       newName ||= this.generateUidIdentifier(oldName).name;
@@ -730,10 +731,6 @@ class Scope {
     } else {
       this.registerBinding("unknown", path);
     }
-  }
-
-  buildUndefinedNode() {
-    return buildUndefinedNode();
   }
 
   registerConstantViolation(path: NodePath<t.Node>) {
@@ -985,12 +982,12 @@ class Scope {
       const typeVisitors = scopeVisitor[path.type];
       if (typeVisitors) {
         for (const visit of typeVisitors.enter!) {
-          visit.call(state, path, state);
+          (visit as Function).call(state, path, state);
         }
       }
     }
 
-    traverseForScope(path, scopeVisitor, state);
+    traverseForScope(path, scopeVisitor as Visitor, state);
 
     this.crawling = false;
 
@@ -1247,8 +1244,7 @@ class Scope {
   hasBinding(
     name: string,
     opts?:
-      | boolean
-      | { noGlobals?: boolean; noUids?: boolean; upToScope?: Scope },
+      boolean | { noGlobals?: boolean; noUids?: boolean; upToScope?: Scope },
   ) {
     if (!name) return false;
     // TODO: Only accept the object form.

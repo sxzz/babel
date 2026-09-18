@@ -35,7 +35,7 @@ import type {
  */
 
 export function insertBefore<Nodes extends NodeOrNodeList<t.Node>>(
-  this: NodePath,
+  this: NodePath<t.Node | null>,
   nodes_: Nodes,
 ): NodePaths<Nodes> {
   _assertUnremoved.call(this);
@@ -89,14 +89,14 @@ export function insertBefore<Nodes extends NodeOrNodeList<t.Node>>(
   }
 }
 
-export function _containerInsert<Nodes extends NodeList<t.Node>>(
-  this: NodePath,
+function _containerInsert<Nodes extends NodeList<t.Node>>(
+  this: NodePath<t.Node | null>,
   from: number,
   nodes: Nodes,
 ): NodePaths<Nodes> {
   updateSiblingKeys.call(this, from, nodes.length);
 
-  const paths: NodePath[] = [];
+  const paths: NodePath<t.Node | null>[] = [];
 
   // @ts-expect-error todo(flow->ts): this.container could be a NodePath
   this.container.splice(from, 0, ...nodes);
@@ -124,8 +124,8 @@ export function _containerInsert<Nodes extends NodeList<t.Node>>(
   return paths as NodePaths<Nodes>;
 }
 
-export function _containerInsertBefore<Nodes extends NodeList<t.Node>>(
-  this: NodePath,
+function _containerInsertBefore<Nodes extends NodeList<t.Node>>(
+  this: NodePath<t.Node | null>,
   nodes: Nodes,
 ): NodePaths<Nodes> {
   return _containerInsert.call(
@@ -136,7 +136,7 @@ export function _containerInsertBefore<Nodes extends NodeList<t.Node>>(
 }
 
 export function _containerInsertAfter<Nodes extends NodeList<t.Node>>(
-  this: NodePath,
+  this: NodePath<t.Node | null>,
   nodes: Nodes,
 ): NodePaths<Nodes> {
   return _containerInsert.call(
@@ -182,7 +182,7 @@ function isAlmostConstantAssignment(
  */
 
 export function insertAfter<Nodes extends NodeOrNodeList<t.Node>>(
-  this: NodePath,
+  this: NodePath<t.Node | null>,
   nodes_: Nodes,
 ): NodePaths<Nodes> {
   _assertUnremoved.call(this);
@@ -299,7 +299,7 @@ export function insertAfter<Nodes extends NodeOrNodeList<t.Node>>(
  */
 
 export function updateSiblingKeys(
-  this: NodePath,
+  this: NodePath<t.Node | null>,
   fromIndex: number,
   incrementBy: number,
 ) {
@@ -320,7 +320,7 @@ export function updateSiblingKeys(
 }
 
 export function _verifyNodeList<N extends t.Node>(
-  this: NodePath,
+  this: NodePath<t.Node | null>,
   nodes: N | N[],
 ) {
   if (!nodes) {

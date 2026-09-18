@@ -4,7 +4,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
 import { createDebug } from "obug";
-import { satisfies } from "verkit";
+import { isLess, satisfies } from "verkit";
 
 import { endHiddenCallStack } from "../../errors/rewrite-stack-trace.ts";
 import ConfigError from "../../errors/config-error.ts";
@@ -205,7 +205,7 @@ function ensureTsSupport<T>(
         // TODO(Babel 8): Add this as an optional peer dependency
         // eslint-disable-next-line import/no-extraneous-dependencies
         const packageJson = require("@babel/preset-typescript/package.json");
-        if (semver.lt(packageJson.version, "7.21.4")) {
+        if (isLess(packageJson.version, "7.21.4")) {
           console.error(
             "`.cts` configuration file failed to load, please try to update `@babel/preset-typescript`.",
           );

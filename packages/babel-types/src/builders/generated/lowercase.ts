@@ -64,6 +64,93 @@ export function assignmentExpression(
   return node;
 }
 export function binaryExpression(
+  operator: "in",
+  left: t.Expression | t.PrivateName,
+  right: t.Expression,
+): Extract<t.BinaryExpression, { operator: "in" }>;
+export function binaryExpression(
+  operator:
+    | "+"
+    | "-"
+    | "/"
+    | "%"
+    | "*"
+    | "**"
+    | "&"
+    | "|"
+    | ">>"
+    | ">>>"
+    | "<<"
+    | "^"
+    | "=="
+    | "==="
+    | "!="
+    | "!=="
+    | "instanceof"
+    | ">"
+    | "<"
+    | ">="
+    | "<="
+    | "|>",
+  left: t.Expression,
+  right: t.Expression,
+): Extract<
+  t.BinaryExpression,
+  {
+    operator:
+      | "+"
+      | "-"
+      | "/"
+      | "%"
+      | "*"
+      | "**"
+      | "&"
+      | "|"
+      | ">>"
+      | ">>>"
+      | "<<"
+      | "^"
+      | "=="
+      | "==="
+      | "!="
+      | "!=="
+      | "instanceof"
+      | ">"
+      | "<"
+      | ">="
+      | "<="
+      | "|>";
+  }
+>;
+export function binaryExpression(
+  operator:
+    | "+"
+    | "-"
+    | "/"
+    | "%"
+    | "*"
+    | "**"
+    | "&"
+    | "|"
+    | ">>"
+    | ">>>"
+    | "<<"
+    | "^"
+    | "=="
+    | "==="
+    | "!="
+    | "!=="
+    | "in"
+    | "instanceof"
+    | ">"
+    | "<"
+    | ">="
+    | "<="
+    | "|>",
+  left: t.Expression | t.PrivateName,
+  right: t.Expression,
+): t.BinaryExpression;
+export function binaryExpression(
   operator:
     | "+"
     | "-"
@@ -91,12 +178,12 @@ export function binaryExpression(
   left: t.Expression | t.PrivateName,
   right: t.Expression,
 ): t.BinaryExpression {
-  const node: t.BinaryExpression = {
+  const node = {
     type: "BinaryExpression",
     operator,
     left,
     right,
-  };
+  } as t.BinaryExpression;
   const defs = NODE_FIELDS.BinaryExpression;
   validate(defs.operator, node, "operator", operator);
   validate(defs.left, node, "left", left, 1);
@@ -156,7 +243,7 @@ export function breakStatement(
   return node;
 }
 export function callExpression(
-  callee: t.Expression | t.Super | t.V8IntrinsicIdentifier,
+  callee: t.Expression | t.Super | t.Import | t.V8IntrinsicIdentifier,
   _arguments: (t.Expression | t.SpreadElement | t.ArgumentPlaceholder)[],
 ): t.CallExpression {
   const node: t.CallExpression = {
@@ -171,11 +258,7 @@ export function callExpression(
 }
 export function catchClause(
   param:
-    | t.Identifier
-    | t.ArrayPattern
-    | t.ObjectPattern
-    | null
-    | undefined = null,
+    t.Identifier | t.ArrayPattern | t.ObjectPattern | null | undefined = null,
   body: t.BlockStatement,
 ): t.CatchClause {
   const node: t.CatchClause = {
@@ -496,7 +579,7 @@ export function memberExpression(
   return node;
 }
 export function newExpression(
-  callee: t.Expression | t.Super | t.V8IntrinsicIdentifier,
+  callee: t.Expression | t.V8IntrinsicIdentifier,
   _arguments: (t.Expression | t.SpreadElement | t.ArgumentPlaceholder)[],
 ): t.NewExpression {
   const node: t.NewExpression = {
@@ -905,7 +988,6 @@ export function arrowFunctionExpression(
     params,
     body,
     async,
-    expression: null,
   };
   const defs = NODE_FIELDS.ArrowFunctionExpression;
   validate(defs.params, node, "params", params, 1);
@@ -975,22 +1057,26 @@ export function classDeclaration(
 }
 export function exportAllDeclaration(
   source: t.StringLiteral,
+  attributes: t.ImportAttribute[] | null = null,
 ): t.ExportAllDeclaration {
   const node: t.ExportAllDeclaration = {
     type: "ExportAllDeclaration",
     source,
-    assertions: null,
+    attributes,
   };
   const defs = NODE_FIELDS.ExportAllDeclaration;
   validate(defs.source, node, "source", source, 1);
+  validate(defs.attributes, node, "attributes", attributes, 1);
   return node;
 }
 export function exportDefaultDeclaration(
   declaration:
-    | t.TSDeclareFunction
     | t.FunctionDeclaration
     | t.ClassDeclaration
-    | t.Expression,
+    | t.Expression
+    | t.TSDeclareFunction
+    | t.TSInterfaceDeclaration
+    | t.EnumDeclaration,
 ): t.ExportDefaultDeclaration {
   const node: t.ExportDefaultDeclaration = {
     type: "ExportDefaultDeclaration",
@@ -1001,28 +1087,43 @@ export function exportDefaultDeclaration(
   return node;
 }
 export function exportNamedDeclaration(
-  declaration: t.Declaration | null = null,
+  declaration:
+    | t.VariableDeclaration
+    | t.FunctionDeclaration
+    | t.ClassDeclaration
+    | t.TSDeclareFunction
+    | t.TSEnumDeclaration
+    | t.TSImportEqualsDeclaration
+    | t.TSInterfaceDeclaration
+    | t.TSModuleDeclaration
+    | t.TSTypeAliasDeclaration
+    | t.EnumDeclaration
+    | t.InterfaceDeclaration
+    | t.OpaqueType
+    | t.TypeAlias
+    | null = null,
   specifiers: (
-    | t.ExportSpecifier
-    | t.ExportDefaultSpecifier
-    | t.ExportNamespaceSpecifier
+    t.ExportSpecifier | t.ExportDefaultSpecifier | t.ExportNamespaceSpecifier
   )[] = [],
   source: t.StringLiteral | null = null,
+  attributes: t.ImportAttribute[] | null = null,
 ): t.ExportNamedDeclaration {
   const node: t.ExportNamedDeclaration = {
     type: "ExportNamedDeclaration",
     declaration,
     specifiers,
     source,
+    attributes,
   };
   const defs = NODE_FIELDS.ExportNamedDeclaration;
   validate(defs.declaration, node, "declaration", declaration, 1);
   validate(defs.specifiers, node, "specifiers", specifiers, 1);
   validate(defs.source, node, "source", source, 1);
+  validate(defs.attributes, node, "attributes", attributes, 1);
   return node;
 }
 export function exportSpecifier(
-  local: t.Identifier,
+  local: t.Identifier | t.StringLiteral,
   exported: t.Identifier | t.StringLiteral,
 ): t.ExportSpecifier {
   const node: t.ExportSpecifier = {
@@ -1066,20 +1167,21 @@ export function forOfStatement(
 }
 export function importDeclaration(
   specifiers: (
-    | t.ImportSpecifier
-    | t.ImportDefaultSpecifier
-    | t.ImportNamespaceSpecifier
+    t.ImportSpecifier | t.ImportDefaultSpecifier | t.ImportNamespaceSpecifier
   )[],
   source: t.StringLiteral,
+  attributes: t.ImportAttribute[] | null = null,
 ): t.ImportDeclaration {
   const node: t.ImportDeclaration = {
     type: "ImportDeclaration",
     specifiers,
     source,
+    attributes,
   };
   const defs = NODE_FIELDS.ImportDeclaration;
   validate(defs.specifiers, node, "specifiers", specifiers, 1);
   validate(defs.source, node, "source", source, 1);
+  validate(defs.attributes, node, "attributes", attributes, 1);
   return node;
 }
 export function importDefaultSpecifier(
@@ -1116,20 +1218,6 @@ export function importSpecifier(
   const defs = NODE_FIELDS.ImportSpecifier;
   validate(defs.local, node, "local", local, 1);
   validate(defs.imported, node, "imported", imported, 1);
-  return node;
-}
-export function importExpression(
-  source: t.Expression,
-  options: t.Expression | null = null,
-): t.ImportExpression {
-  const node: t.ImportExpression = {
-    type: "ImportExpression",
-    source,
-    options,
-  };
-  const defs = NODE_FIELDS.ImportExpression;
-  validate(defs.source, node, "source", source, 1);
-  validate(defs.options, node, "options", options, 1);
   return node;
 }
 export function metaProperty(
@@ -1173,7 +1261,8 @@ export function classMethod(
     | t.StringLiteral
     | t.NumericLiteral
     | t.BigIntLiteral
-    | t.Expression,
+    | t.Expression
+    | t.PrivateName,
   params: (t.FunctionParameter | t.TSParameterProperty)[],
   body: t.BlockStatement,
   computed?: boolean,
@@ -1188,7 +1277,8 @@ export function classMethod(
     | t.StringLiteral
     | t.NumericLiteral
     | t.BigIntLiteral
-    | t.Expression,
+    | t.Expression
+    | t.PrivateName,
   params: (t.FunctionParameter | t.TSParameterProperty)[],
   body: t.BlockStatement,
   computed: boolean = false,
@@ -1259,7 +1349,7 @@ export function taggedTemplateExpression(
   return node;
 }
 export function templateElement(
-  value: { raw: string; cooked?: string },
+  value: { raw: string; cooked?: string | null },
   tail: boolean = false,
 ): t.TemplateElement {
   const node: t.TemplateElement = {
@@ -1309,6 +1399,20 @@ export function awaitExpression(argument: t.Expression): t.AwaitExpression {
   validate(defs.argument, node, "argument", argument, 1);
   return node;
 }
+export function importExpression(
+  source: t.Expression,
+  options: t.Expression | null = null,
+): t.ImportExpression {
+  const node: t.ImportExpression = {
+    type: "ImportExpression",
+    source,
+    options,
+  };
+  const defs = NODE_FIELDS.ImportExpression;
+  validate(defs.source, node, "source", source, 1);
+  validate(defs.options, node, "options", options, 1);
+  return node;
+}
 function _import(): t.Import {
   return {
     type: "Import",
@@ -1325,7 +1429,7 @@ export function bigIntLiteral(value: bigint): t.BigIntLiteral {
   return node;
 }
 export function exportNamespaceSpecifier(
-  exported: t.Identifier,
+  exported: t.Identifier | t.StringLiteral,
 ): t.ExportNamespaceSpecifier {
   const node: t.ExportNamespaceSpecifier = {
     type: "ExportNamespaceSpecifier",
@@ -1337,17 +1441,35 @@ export function exportNamespaceSpecifier(
 }
 export function optionalMemberExpression(
   object: t.Expression,
-  property: t.Expression | t.Identifier,
+  property: t.Expression,
+  computed: true | undefined,
+  optional: boolean,
+): Extract<t.OptionalMemberExpression, { computed: true }>;
+export function optionalMemberExpression(
+  object: t.Expression,
+  property: t.Identifier | t.PrivateName,
+  computed: false | undefined,
+  optional: boolean,
+): Extract<t.OptionalMemberExpression, { computed: false }>;
+export function optionalMemberExpression(
+  object: t.Expression,
+  property: t.Expression | t.PrivateName,
+  computed: boolean | undefined,
+  optional: boolean,
+): t.OptionalMemberExpression;
+export function optionalMemberExpression(
+  object: t.Expression,
+  property: t.Expression | t.PrivateName,
   computed: boolean | undefined = false,
   optional: boolean,
 ): t.OptionalMemberExpression {
-  const node: t.OptionalMemberExpression = {
+  const node = {
     type: "OptionalMemberExpression",
     object,
     property,
     computed,
     optional,
-  };
+  } as t.OptionalMemberExpression;
   const defs = NODE_FIELDS.OptionalMemberExpression;
   validate(defs.object, node, "object", object, 1);
   validate(defs.property, node, "property", property, 1);
@@ -1394,7 +1516,8 @@ export function classProperty(
     | t.StringLiteral
     | t.NumericLiteral
     | t.BigIntLiteral
-    | t.Expression,
+    | t.Expression
+    | t.PrivateName,
   value?: t.Expression | null,
   typeAnnotation?: t.TypeAnnotation | t.TSTypeAnnotation | null,
   decorators?: t.Decorator[] | null,
@@ -1407,7 +1530,8 @@ export function classProperty(
     | t.StringLiteral
     | t.NumericLiteral
     | t.BigIntLiteral
-    | t.Expression,
+    | t.Expression
+    | t.PrivateName,
   value: t.Expression | null = null,
   typeAnnotation: t.TypeAnnotation | t.TSTypeAnnotation | null = null,
   decorators: t.Decorator[] | null = null,
@@ -1424,73 +1548,6 @@ export function classProperty(
     static: _static,
   } as t.ClassProperty;
   const defs = NODE_FIELDS.ClassProperty;
-  validate(defs.key, node, "key", key, 1);
-  validate(defs.value, node, "value", value, 1);
-  validate(defs.typeAnnotation, node, "typeAnnotation", typeAnnotation, 1);
-  validate(defs.decorators, node, "decorators", decorators, 1);
-  validate(defs.computed, node, "computed", computed);
-  validate(defs.static, node, "static", _static);
-  return node;
-}
-export function classAccessorProperty(
-  key: t.Expression,
-  value?: t.Expression | null,
-  typeAnnotation?: t.TypeAnnotation | t.TSTypeAnnotation | null,
-  decorators?: t.Decorator[] | null,
-  computed?: true,
-  _static?: boolean,
-): Extract<t.ClassAccessorProperty, { computed: true }>;
-export function classAccessorProperty(
-  key:
-    | t.Identifier
-    | t.StringLiteral
-    | t.NumericLiteral
-    | t.BigIntLiteral
-    | t.PrivateName,
-  value?: t.Expression | null,
-  typeAnnotation?: t.TypeAnnotation | t.TSTypeAnnotation | null,
-  decorators?: t.Decorator[] | null,
-  computed?: false,
-  _static?: boolean,
-): Extract<t.ClassAccessorProperty, { computed: false }>;
-export function classAccessorProperty(
-  key:
-    | t.Identifier
-    | t.StringLiteral
-    | t.NumericLiteral
-    | t.BigIntLiteral
-    | t.Expression
-    | t.PrivateName,
-  value?: t.Expression | null,
-  typeAnnotation?: t.TypeAnnotation | t.TSTypeAnnotation | null,
-  decorators?: t.Decorator[] | null,
-  computed?: boolean,
-  _static?: boolean,
-): t.ClassAccessorProperty;
-export function classAccessorProperty(
-  key:
-    | t.Identifier
-    | t.StringLiteral
-    | t.NumericLiteral
-    | t.BigIntLiteral
-    | t.Expression
-    | t.PrivateName,
-  value: t.Expression | null = null,
-  typeAnnotation: t.TypeAnnotation | t.TSTypeAnnotation | null = null,
-  decorators: t.Decorator[] | null = null,
-  computed: boolean = false,
-  _static: boolean = false,
-): t.ClassAccessorProperty {
-  const node = {
-    type: "ClassAccessorProperty",
-    key,
-    value,
-    typeAnnotation,
-    decorators,
-    computed,
-    static: _static,
-  } as t.ClassAccessorProperty;
-  const defs = NODE_FIELDS.ClassAccessorProperty;
   validate(defs.key, node, "key", key, 1);
   validate(defs.value, node, "value", value, 1);
   validate(defs.typeAnnotation, node, "typeAnnotation", typeAnnotation, 1);
@@ -1533,6 +1590,9 @@ export function classPrivateMethod(
     params,
     body,
     static: _static,
+    async: false,
+    computed: false,
+    generator: false,
   };
   const defs = NODE_FIELDS.ClassPrivateMethod;
   validate(defs.kind, node, "kind", kind);
@@ -1779,7 +1839,7 @@ export function declareExportAllDeclaration(
   validate(defs.attributes, node, "attributes", attributes, 1);
   return node;
 }
-export function declaredPredicate(value: t.Flow): t.DeclaredPredicate {
+export function declaredPredicate(value: t.Expression): t.DeclaredPredicate {
   const node: t.DeclaredPredicate = {
     type: "DeclaredPredicate",
     value,
@@ -1937,6 +1997,17 @@ export function numberLiteralTypeAnnotation(
   validate(defs.value, node, "value", value);
   return node;
 }
+export function bigIntLiteralTypeAnnotation(
+  value: bigint,
+): t.BigIntLiteralTypeAnnotation {
+  const node: t.BigIntLiteralTypeAnnotation = {
+    type: "BigIntLiteralTypeAnnotation",
+    value,
+  };
+  const defs = NODE_FIELDS.BigIntLiteralTypeAnnotation;
+  validate(defs.value, node, "value", value);
+  return node;
+}
 export function numberTypeAnnotation(): t.NumberTypeAnnotation {
   return {
     type: "NumberTypeAnnotation",
@@ -1994,7 +2065,7 @@ export function objectTypeCallProperty(
   const node: t.ObjectTypeCallProperty = {
     type: "ObjectTypeCallProperty",
     value,
-    static: null,
+    static: false,
   };
   const defs = NODE_FIELDS.ObjectTypeCallProperty;
   validate(defs.value, node, "value", value, 1);
@@ -2012,7 +2083,7 @@ export function objectTypeIndexer(
     key,
     value,
     variance,
-    static: null,
+    static: false,
   };
   const defs = NODE_FIELDS.ObjectTypeIndexer;
   validate(defs.id, node, "id", id, 1);
@@ -2022,7 +2093,7 @@ export function objectTypeIndexer(
   return node;
 }
 export function objectTypeProperty(
-  key: t.Identifier | t.StringLiteral,
+  key: t.Identifier | t.StringLiteral | t.NumericLiteral,
   value: t.FlowType,
   variance: t.Variance | null = null,
 ): t.ObjectTypeProperty {
@@ -2031,11 +2102,11 @@ export function objectTypeProperty(
     key,
     value,
     variance,
-    kind: null,
-    method: null,
-    optional: null,
-    proto: null,
-    static: null,
+    kind: "init",
+    method: false,
+    optional: false,
+    proto: false,
+    static: false,
   };
   const defs = NODE_FIELDS.ObjectTypeProperty;
   validate(defs.key, node, "key", key, 1);
@@ -2126,7 +2197,7 @@ export function tupleTypeAnnotation(
   return node;
 }
 export function typeofTypeAnnotation(
-  argument: t.FlowType,
+  argument: t.FlowType | t.Identifier,
 ): t.TypeofTypeAnnotation {
   const node: t.TypeofTypeAnnotation = {
     type: "TypeofTypeAnnotation",
@@ -2153,7 +2224,9 @@ export function typeAlias(
   validate(defs.right, node, "right", right, 1);
   return node;
 }
-export function typeAnnotation(typeAnnotation: t.FlowType): t.TypeAnnotation {
+export function typeAnnotation(
+  typeAnnotation: t.FlowType | t.Identifier,
+): t.TypeAnnotation {
   const node: t.TypeAnnotation = {
     type: "TypeAnnotation",
     typeAnnotation,
@@ -2177,18 +2250,20 @@ export function typeCastExpression(
   return node;
 }
 export function typeParameter(
+  name: string,
   bound: t.TypeAnnotation | null = null,
   _default: t.FlowType | null = null,
   variance: t.Variance | null = null,
 ): t.TypeParameter {
   const node: t.TypeParameter = {
     type: "TypeParameter",
+    name,
     bound,
     default: _default,
     variance,
-    name: null,
   };
   const defs = NODE_FIELDS.TypeParameter;
+  validate(defs.name, node, "name", name);
   validate(defs.bound, node, "bound", bound, 1);
   validate(defs.default, node, "default", _default, 1);
   validate(defs.variance, node, "variance", variance, 1);
@@ -2244,10 +2319,7 @@ export function voidTypeAnnotation(): t.VoidTypeAnnotation {
 export function enumDeclaration(
   id: t.Identifier,
   body:
-    | t.EnumBooleanBody
-    | t.EnumNumberBody
-    | t.EnumStringBody
-    | t.EnumSymbolBody,
+    t.EnumBooleanBody | t.EnumNumberBody | t.EnumStringBody | t.EnumSymbolBody,
 ): t.EnumDeclaration {
   const node: t.EnumDeclaration = {
     type: "EnumDeclaration",
@@ -2265,8 +2337,8 @@ export function enumBooleanBody(
   const node: t.EnumBooleanBody = {
     type: "EnumBooleanBody",
     members,
-    explicitType: null,
-    hasUnknownMembers: null,
+    explicitType: false,
+    hasUnknownMembers: false,
   };
   const defs = NODE_FIELDS.EnumBooleanBody;
   validate(defs.members, node, "members", members, 1);
@@ -2278,8 +2350,8 @@ export function enumNumberBody(
   const node: t.EnumNumberBody = {
     type: "EnumNumberBody",
     members,
-    explicitType: null,
-    hasUnknownMembers: null,
+    explicitType: false,
+    hasUnknownMembers: false,
   };
   const defs = NODE_FIELDS.EnumNumberBody;
   validate(defs.members, node, "members", members, 1);
@@ -2291,8 +2363,8 @@ export function enumStringBody(
   const node: t.EnumStringBody = {
     type: "EnumStringBody",
     members,
-    explicitType: null,
-    hasUnknownMembers: null,
+    explicitType: false,
+    hasUnknownMembers: false,
   };
   const defs = NODE_FIELDS.EnumStringBody;
   validate(defs.members, node, "members", members, 1);
@@ -2304,20 +2376,24 @@ export function enumSymbolBody(
   const node: t.EnumSymbolBody = {
     type: "EnumSymbolBody",
     members,
-    hasUnknownMembers: null,
+    hasUnknownMembers: false,
   };
   const defs = NODE_FIELDS.EnumSymbolBody;
   validate(defs.members, node, "members", members, 1);
   return node;
 }
-export function enumBooleanMember(id: t.Identifier): t.EnumBooleanMember {
+export function enumBooleanMember(
+  id: t.Identifier,
+  init: t.BooleanLiteral,
+): t.EnumBooleanMember {
   const node: t.EnumBooleanMember = {
     type: "EnumBooleanMember",
     id,
-    init: null,
+    init,
   };
   const defs = NODE_FIELDS.EnumBooleanMember;
   validate(defs.id, node, "id", id, 1);
+  validate(defs.init, node, "init", init, 1);
   return node;
 }
 export function enumNumberMember(
@@ -2379,7 +2455,7 @@ export function optionalIndexedAccessType(
     type: "OptionalIndexedAccessType",
     objectType,
     indexType,
-    optional: null,
+    optional: false,
   };
   const defs = NODE_FIELDS.OptionalIndexedAccessType;
   validate(defs.objectType, node, "objectType", objectType, 1);
@@ -2608,7 +2684,7 @@ export function argumentPlaceholder(): t.ArgumentPlaceholder {
   };
 }
 export function bindExpression(
-  object: t.Expression,
+  object: null | t.Expression,
   callee: t.Expression,
 ): t.BindExpression {
   const node: t.BindExpression = {
@@ -2619,6 +2695,73 @@ export function bindExpression(
   const defs = NODE_FIELDS.BindExpression;
   validate(defs.object, node, "object", object, 1);
   validate(defs.callee, node, "callee", callee, 1);
+  return node;
+}
+export function classAccessorProperty(
+  key: t.Expression,
+  value?: t.Expression | null,
+  typeAnnotation?: t.TypeAnnotation | t.TSTypeAnnotation | null,
+  decorators?: t.Decorator[] | null,
+  computed?: true,
+  _static?: boolean,
+): Extract<t.ClassAccessorProperty, { computed: true }>;
+export function classAccessorProperty(
+  key:
+    | t.Identifier
+    | t.StringLiteral
+    | t.NumericLiteral
+    | t.BigIntLiteral
+    | t.PrivateName,
+  value?: t.Expression | null,
+  typeAnnotation?: t.TypeAnnotation | t.TSTypeAnnotation | null,
+  decorators?: t.Decorator[] | null,
+  computed?: false,
+  _static?: boolean,
+): Extract<t.ClassAccessorProperty, { computed: false }>;
+export function classAccessorProperty(
+  key:
+    | t.Identifier
+    | t.StringLiteral
+    | t.NumericLiteral
+    | t.BigIntLiteral
+    | t.Expression
+    | t.PrivateName,
+  value?: t.Expression | null,
+  typeAnnotation?: t.TypeAnnotation | t.TSTypeAnnotation | null,
+  decorators?: t.Decorator[] | null,
+  computed?: boolean,
+  _static?: boolean,
+): t.ClassAccessorProperty;
+export function classAccessorProperty(
+  key:
+    | t.Identifier
+    | t.StringLiteral
+    | t.NumericLiteral
+    | t.BigIntLiteral
+    | t.Expression
+    | t.PrivateName,
+  value: t.Expression | null = null,
+  typeAnnotation: t.TypeAnnotation | t.TSTypeAnnotation | null = null,
+  decorators: t.Decorator[] | null = null,
+  computed: boolean = false,
+  _static: boolean = false,
+): t.ClassAccessorProperty {
+  const node = {
+    type: "ClassAccessorProperty",
+    key,
+    value,
+    typeAnnotation,
+    decorators,
+    computed,
+    static: _static,
+  } as t.ClassAccessorProperty;
+  const defs = NODE_FIELDS.ClassAccessorProperty;
+  validate(defs.key, node, "key", key, 1);
+  validate(defs.value, node, "value", value, 1);
+  validate(defs.typeAnnotation, node, "typeAnnotation", typeAnnotation, 1);
+  validate(defs.decorators, node, "decorators", decorators, 1);
+  validate(defs.computed, node, "computed", computed);
+  validate(defs.static, node, "static", _static);
   return node;
 }
 export function decorator(expression: t.Expression): t.Decorator {
@@ -2669,33 +2812,6 @@ export function topicReference(): t.TopicReference {
     type: "TopicReference",
   };
 }
-export function pipelineTopicExpression(
-  expression: t.Expression,
-): t.PipelineTopicExpression {
-  const node: t.PipelineTopicExpression = {
-    type: "PipelineTopicExpression",
-    expression,
-  };
-  const defs = NODE_FIELDS.PipelineTopicExpression;
-  validate(defs.expression, node, "expression", expression, 1);
-  return node;
-}
-export function pipelineBareFunction(
-  callee: t.Expression,
-): t.PipelineBareFunction {
-  const node: t.PipelineBareFunction = {
-    type: "PipelineBareFunction",
-    callee,
-  };
-  const defs = NODE_FIELDS.PipelineBareFunction;
-  validate(defs.callee, node, "callee", callee, 1);
-  return node;
-}
-export function pipelinePrimaryTopicReference(): t.PipelinePrimaryTopicReference {
-  return {
-    type: "PipelinePrimaryTopicReference",
-  };
-}
 export function voidPattern(): t.VoidPattern {
   return {
     type: "VoidPattern",
@@ -2724,6 +2840,8 @@ export function tsDeclareFunction(
     typeParameters,
     params,
     returnType,
+    async: false,
+    generator: false,
   };
   const defs = NODE_FIELDS.TSDeclareFunction;
   validate(defs.id, node, "id", id, 1);
@@ -2733,53 +2851,59 @@ export function tsDeclareFunction(
   return node;
 }
 export function tsDeclareMethod(
-  decorators: t.Decorator[] | null | undefined,
   key: t.Expression,
   typeParameters: t.TSTypeParameterDeclaration | null | undefined,
   params: (t.FunctionParameter | t.TSParameterProperty)[],
   returnType?: t.TSTypeAnnotation | null,
 ): Extract<t.TSDeclareMethod, { computed: true }>;
 export function tsDeclareMethod(
-  decorators: t.Decorator[] | null | undefined,
-  key: t.Identifier | t.StringLiteral | t.NumericLiteral | t.BigIntLiteral,
+  key:
+    | t.Identifier
+    | t.StringLiteral
+    | t.NumericLiteral
+    | t.BigIntLiteral
+    | t.PrivateName,
   typeParameters: t.TSTypeParameterDeclaration | null | undefined,
   params: (t.FunctionParameter | t.TSParameterProperty)[],
   returnType?: t.TSTypeAnnotation | null,
 ): Extract<t.TSDeclareMethod, { computed: false }>;
 export function tsDeclareMethod(
-  decorators: t.Decorator[] | null | undefined,
   key:
     | t.Identifier
     | t.StringLiteral
     | t.NumericLiteral
     | t.BigIntLiteral
-    | t.Expression,
+    | t.Expression
+    | t.PrivateName,
   typeParameters: t.TSTypeParameterDeclaration | null | undefined,
   params: (t.FunctionParameter | t.TSParameterProperty)[],
   returnType?: t.TSTypeAnnotation | null,
 ): t.TSDeclareMethod;
 export function tsDeclareMethod(
-  decorators: t.Decorator[] | null | undefined = null,
   key:
     | t.Identifier
     | t.StringLiteral
     | t.NumericLiteral
     | t.BigIntLiteral
-    | t.Expression,
+    | t.Expression
+    | t.PrivateName,
   typeParameters: t.TSTypeParameterDeclaration | null | undefined = null,
   params: (t.FunctionParameter | t.TSParameterProperty)[],
   returnType: t.TSTypeAnnotation | null = null,
 ): t.TSDeclareMethod {
   const node = {
     type: "TSDeclareMethod",
-    decorators,
     key,
     typeParameters,
     params,
     returnType,
+    async: false,
+    computed: false,
+    generator: false,
+    kind: "method",
+    static: false,
   } as t.TSDeclareMethod;
   const defs = NODE_FIELDS.TSDeclareMethod;
-  validate(defs.decorators, node, "decorators", decorators, 1);
   validate(defs.key, node, "key", key, 1);
   validate(defs.typeParameters, node, "typeParameters", typeParameters, 1);
   validate(defs.params, node, "params", params, 1);
@@ -2842,6 +2966,7 @@ export function tsPropertySignature(
     type: "TSPropertySignature",
     key,
     typeAnnotation,
+    computed: false,
   };
   const defs = NODE_FIELDS.TSPropertySignature;
   validate(defs.key, node, "key", key, 1);
@@ -2860,7 +2985,8 @@ export function tsMethodSignature(
     typeParameters,
     params,
     returnType,
-    kind: null,
+    computed: false,
+    kind: "method",
   };
   const defs = NODE_FIELDS.TSMethodSignature;
   validate(defs.key, node, "key", key, 1);
@@ -3264,7 +3390,7 @@ export function tsInterfaceHeritage(
 export function tsInterfaceDeclaration(
   id: t.Identifier,
   typeParameters: t.TSTypeParameterDeclaration | null | undefined = null,
-  _extends: t.TSClassImplements[] | null | undefined = null,
+  _extends: t.TSInterfaceHeritage[] | null | undefined = null,
   body: t.TSInterfaceBody,
 ): t.TSInterfaceDeclaration {
   const node: t.TSInterfaceDeclaration = {
@@ -3408,7 +3534,7 @@ export function tsModuleDeclaration(
     type: "TSModuleDeclaration",
     id,
     body,
-    kind: null,
+    kind: "namespace",
   };
   const defs = NODE_FIELDS.TSModuleDeclaration;
   validate(defs.id, node, "id", id, 1);

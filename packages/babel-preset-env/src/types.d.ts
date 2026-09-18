@@ -22,22 +22,18 @@ export type PluginListItem = string | RegExp;
 export type PluginListOption = PluginListItem[];
 
 export type Options = {
-  bugfixes: boolean;
-  configPath: string;
-  corejs: CorejsOption;
-  debug: boolean;
-  exclude: PluginListOption;
-  forceAllTransforms: boolean;
-  ignoreBrowserslistConfig: boolean;
-  include: PluginListOption;
-  modules: ModuleOption;
-  shippedProposals: boolean;
-  targets: {
-    uglify?: boolean;
+  configPath?: string;
+  debug?: boolean;
+  exclude?: PluginListOption;
+  forceAllTransforms?: boolean;
+  ignoreBrowserslistConfig?: boolean;
+  include?: PluginListOption;
+  modules?: ModuleOption;
+  shippedProposals?: boolean;
+  targets?: {
     esmodules?: boolean;
   } & InputTargets;
-  useBuiltIns: BuiltInsOption;
-  browserslistEnv: string;
+  browserslistEnv?: string;
 };
 
 // Babel

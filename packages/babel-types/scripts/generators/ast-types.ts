@@ -1,10 +1,6 @@
 // @ts-expect-error: Could not find type declarations for babel-types
 import * as _t from "../../lib/index.js";
-import {
-  isNullable,
-  hasDefault,
-  sortFieldNames,
-} from "../utils/fieldHelpers.ts";
+import { sortFieldNames } from "../utils/fieldHelpers.ts";
 import stringifyValidator, {
   isValueType,
 } from "../utils/stringifyValidator.ts";
@@ -24,17 +20,17 @@ function registerParentMaps(parent: string, nodes: string[]) {
     if (!parentMaps.has(node)) {
       parentMaps.set(node, new Set());
     }
-    parentMaps.get(node).add(parent);
+    parentMaps.get(node)!.add(parent);
   }
 }
 
 /**
  * Get the node types from a validator. It will also resolve alias types to their
  * corresponding node types.
- * @param validator
- * @returns
  */
-function getNodeTypesFromValidator(validator: Validator | undefined): string[] {
+export function getNodeTypesFromValidator(
+  validator: Validator<_t.Node> | undefined
+): string[] {
   if (validator === undefined) return [];
   if ("each" in validator) {
     return getNodeTypesFromValidator(validator.each);
@@ -88,7 +84,7 @@ export type Comment = CommentBlock | CommentLine;
 export interface SourceLocation {
   start: Position;
   end: Position;
-  filename: string;
+  filename: string | undefined;
   identifierName: string | undefined | null;
 }
 
@@ -121,7 +117,7 @@ export type Node = ${t.TYPES.filter((k: string) => !t.FLIPPED_ALIAS_KEYS[k])
     const struct: string[] = [];
 
     fieldNames.forEach(fieldName => {
-      const field: FieldOptions = fields[fieldName];
+      const field: FieldOptions<_t.Node> = fields[fieldName];
       registerParentMaps(type, getNodeTypesFromValidator(field.validate));
 
       if (
@@ -133,7 +129,7 @@ export type Node = ${t.TYPES.filter((k: string) => !t.FLIPPED_ALIAS_KEYS[k])
 
       let typeAnnotation = stringifyValidator(field.validate, "");
 
-      if (isNullable(field) && !hasDefault(field)) {
+      if (field.optional) {
         typeAnnotation += " | null";
       }
 
@@ -211,7 +207,7 @@ export interface ${deprecatedAlias[type]} extends BaseNode {
 
   const parentMapsKeys = [...parentMaps.keys()].sort();
   for (const type of parentMapsKeys) {
-    const deduplicated = [...parentMaps.get(type)].sort();
+    const deduplicated = [...parentMaps.get(type)!].sort();
     code += `  ${type}: ${deduplicated.join(" | ")};\n`;
   }
   code += "}\n\n";

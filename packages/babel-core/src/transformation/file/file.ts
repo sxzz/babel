@@ -20,7 +20,7 @@ export default class File {
   scope: Scope;
   metadata: Record<string, any> = {};
   code: string = "";
-  inputMap: SourceMapConverter;
+  inputMap: SourceMapConverter | null;
 
   hub: HubInterface & { file: File } = {
     // keep it for the usage in babel-core, ex: path.hub.file.opts.filename
@@ -28,7 +28,9 @@ export default class File {
     getCode: () => this.code,
     getScope: () => this.scope,
     addHelper: this.addHelper.bind(this),
-    buildError: this.buildCodeFrameError.bind(this),
+    buildError: this.buildCodeFrameError.bind(
+      this,
+    ) as HubInterface["buildError"],
   };
 
   constructor(
@@ -52,7 +54,7 @@ export default class File {
 
   /**
    * Provide backward-compatible access to the interpreter directive handling
-   * in Babel 6.x. If you are writing a plugin for Babel 7.x, it would be
+   * in Babel 6.x. If you are writing a plugin for Babel 7.x or higher, it would be
    * best to use 'program.interpreter' directly.
    */
   get shebang(): string {
@@ -202,13 +204,13 @@ export default class File {
           {
             start: {
               line: loc.start.line,
-              column: loc.start.column + 1,
+              column: loc.start.column,
             },
             end:
               loc.end && loc.start.line === loc.end.line
                 ? {
                     line: loc.end.line,
-                    column: loc.end.column + 1,
+                    column: loc.end.column,
                   }
                 : undefined,
           },

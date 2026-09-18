@@ -11,7 +11,7 @@ describe("@babel/standalone", () => {
   describe("export packages", () => {
     it("list", () => {
       expect(Object.keys(Babel.packages)).toMatchInlineSnapshot(`
-        Array [
+        [
           "generator",
           "parser",
           "template",
@@ -58,7 +58,7 @@ describe("@babel/standalone", () => {
     }).code;
     expect(output).toBe("var a;");
   });
-  it("can translate simple ast", () => {
+  it("can synchronously translate simple ast", () => {
     const ast = {
       type: "Program",
       start: 0,
@@ -84,6 +84,43 @@ describe("@babel/standalone", () => {
       presets: ["es2015"],
     }).code;
     expect(output).toBe("42;");
+  });
+  it("can asynchronously translate simple ast", async () => {
+    const ast = {
+      type: "Program",
+      start: 0,
+      end: 2,
+      directives: [],
+      body: [
+        {
+          type: "ExpressionStatement",
+          start: 0,
+          end: 1,
+          expression: {
+            type: "NumericLiteral",
+            start: 0,
+            end: 2,
+            value: 42,
+            raw: "42",
+          },
+        },
+      ],
+      sourceType: "script",
+    };
+    const output = (
+      await Babel.transformFromAstAsync(ast, "42", {
+        presets: ["es2015"],
+      })
+    ).code;
+    expect(output).toBe("42;");
+  });
+  it("can asynchronously translate simple code", async () => {
+    const output = (
+      await Babel.transformAsync("const a = 42;", {
+        presets: ["es2015"],
+      })
+    ).code;
+    expect(output).toBe(`"use strict";\n\nvar a = 42;`);
   });
 
   it("handles the react preset", () => {
@@ -217,21 +254,6 @@ describe("@babel/standalone", () => {
       );
     });
 
-    it("useBuiltIns works", () => {
-      const output = Babel.transform("[].includes(2)", {
-        sourceType: "module",
-        targets: { ie: 11 },
-        presets: [
-          ["env", { useBuiltIns: "usage", corejs: "3.0", modules: false }],
-        ],
-      }).code;
-
-      expect(output).toMatchInlineSnapshot(`
-        "import \\"core-js/modules/es.array.includes.js\\";
-        [].includes(2);"
-      `);
-    });
-
     it("regenerator works", () => {
       const output = Babel.transform("function* fn() {}", {
         sourceType: "module",
@@ -324,7 +346,7 @@ describe("@babel/standalone", () => {
           targets: { chrome: 113 },
           presets: [["env", { modules: false }]],
         }).code,
-      ).toMatchInlineSnapshot(`"/[\\\\w--[b]]/v;"`);
+      ).toMatchInlineSnapshot(`"/[\\w--[b]]/v;"`);
     });
   });
 });

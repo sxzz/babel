@@ -1,6 +1,6 @@
 {
   "name": "@babel/helper-create-class-features-plugin",
-  "version": "7.28.5",
+  "version": "8.0.6",
   "author": "The Babel Team (https://babel.dev/team)",
   "license": "MIT",
   "description": "Compile class public and private fields, private methods and decorators to ES6",
@@ -24,20 +24,20 @@
     "@babel/helper-replace-supers": "workspace:^",
     "@babel/helper-skip-transparent-expression-wrappers": "workspace:^",
     "@babel/traverse": "workspace:^",
-    "verkit": "^0.4.0"
+    "verkit": "catalog:"
   },
   "peerDependencies": {
-    "@babel/core": "^7.0.0"
+    "@babel/core": "^8.0.0"
   },
   "devDependencies": {
     "@babel/core": "workspace:^",
     "@babel/helper-plugin-test-runner": "workspace:^",
     "@babel/preset-env": "workspace:^",
     "@types/charcodes": "^0.2.0",
-    "charcodes": "^0.2.0"
+    "charcodes": "catalog:dev"
   },
   "engines": {
-    "node": "^20.19.0 || >=22.12.0"
+    "node": "^22.18.0 || >=24.11.0"
   },
   "exports": {
     ".": {

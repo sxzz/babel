@@ -35,17 +35,6 @@ startLocalRegistry "$root"/verdaccio-config.yml
 yarn install --no-immutable
 yarn info
 
-# Babel 8 related adjustments
-  sed -i "s/ts-expect-error//g" ./src/language-json/parser-json.js
-
-  sed -i 's/"TupleExpression",//g' src/language-js/traverse/visitor-keys.evaluate.js
-  sed -i 's/"RecordExpression",//g' src/language-js/traverse/visitor-keys.evaluate.js
-  sed -i 's#TSImportType:#//#g' src/language-js/traverse/visitor-keys.evaluate.js
-
-  rm tests/format/js/babel-plugins/import-assertions-static.js
-  rm tests/format/js/import-assertions/format.test.js
-  rm tests/format/js/import-assertions/bracket-spacing/format.test.js
-
 # Test typings for @babel/parser
 yarn lint:typecheck
 
@@ -56,6 +45,6 @@ echo "export default () => () => {}" > src/main/create-print-pre-check-function.
 # Temporarily ignore tests, use `rm -f path/to/format.test.js`
 # rm -f path/to/format.test.js
 
-yarn test "tests/format/(jsx?|misc|typescript|flow|flow-repo)/" --update-snapshot
+yarn test "tests/format/(jsx?|misc|typescript|flow)/" --update-snapshot
 
 cleanup

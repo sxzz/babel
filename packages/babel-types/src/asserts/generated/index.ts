@@ -411,12 +411,6 @@ export function assertImportSpecifier(
 ): asserts node is t.ImportSpecifier {
   assert("ImportSpecifier", node, opts);
 }
-export function assertImportExpression(
-  node: object | null | undefined,
-  opts?: object | null,
-): asserts node is t.ImportExpression {
-  assert("ImportExpression", node, opts);
-}
 export function assertMetaProperty(
   node: object | null | undefined,
   opts?: object | null,
@@ -477,6 +471,12 @@ export function assertAwaitExpression(
 ): asserts node is t.AwaitExpression {
   assert("AwaitExpression", node, opts);
 }
+export function assertImportExpression(
+  node: object | null | undefined,
+  opts?: object | null,
+): asserts node is t.ImportExpression {
+  assert("ImportExpression", node, opts);
+}
 export function assertImport(
   node: object | null | undefined,
   opts?: object | null,
@@ -512,12 +512,6 @@ export function assertClassProperty(
   opts?: object | null,
 ): asserts node is t.ClassProperty {
   assert("ClassProperty", node, opts);
-}
-export function assertClassAccessorProperty(
-  node: object | null | undefined,
-  opts?: object | null,
-): asserts node is t.ClassAccessorProperty {
-  assert("ClassAccessorProperty", node, opts);
 }
 export function assertClassPrivateProperty(
   node: object | null | undefined,
@@ -728,6 +722,12 @@ export function assertNumberLiteralTypeAnnotation(
   opts?: object | null,
 ): asserts node is t.NumberLiteralTypeAnnotation {
   assert("NumberLiteralTypeAnnotation", node, opts);
+}
+export function assertBigIntLiteralTypeAnnotation(
+  node: object | null | undefined,
+  opts?: object | null,
+): asserts node is t.BigIntLiteralTypeAnnotation {
+  assert("BigIntLiteralTypeAnnotation", node, opts);
 }
 export function assertNumberTypeAnnotation(
   node: object | null | undefined,
@@ -1053,6 +1053,12 @@ export function assertBindExpression(
 ): asserts node is t.BindExpression {
   assert("BindExpression", node, opts);
 }
+export function assertClassAccessorProperty(
+  node: object | null | undefined,
+  opts?: object | null,
+): asserts node is t.ClassAccessorProperty {
+  assert("ClassAccessorProperty", node, opts);
+}
 export function assertDecorator(
   node: object | null | undefined,
   opts?: object | null,
@@ -1082,24 +1088,6 @@ export function assertTopicReference(
   opts?: object | null,
 ): asserts node is t.TopicReference {
   assert("TopicReference", node, opts);
-}
-export function assertPipelineTopicExpression(
-  node: object | null | undefined,
-  opts?: object | null,
-): asserts node is t.PipelineTopicExpression {
-  assert("PipelineTopicExpression", node, opts);
-}
-export function assertPipelineBareFunction(
-  node: object | null | undefined,
-  opts?: object | null,
-): asserts node is t.PipelineBareFunction {
-  assert("PipelineBareFunction", node, opts);
-}
-export function assertPipelinePrimaryTopicReference(
-  node: object | null | undefined,
-  opts?: object | null,
-): asserts node is t.PipelinePrimaryTopicReference {
-  assert("PipelinePrimaryTopicReference", node, opts);
 }
 export function assertVoidPattern(
   node: object | null | undefined,
@@ -1725,12 +1713,6 @@ export function assertModuleSpecifier(
 ): asserts node is t.ModuleSpecifier {
   assert("ModuleSpecifier", node, opts);
 }
-export function assertAccessor(
-  node: object | null | undefined,
-  opts?: object | null,
-): asserts node is t.Accessor {
-  assert("Accessor", node, opts);
-}
 export function assertPrivate(
   node: object | null | undefined,
   opts?: object | null,
@@ -1790,6 +1772,12 @@ export function assertMiscellaneous(
   opts?: object | null,
 ): asserts node is t.Miscellaneous {
   assert("Miscellaneous", node, opts);
+}
+export function assertAccessor(
+  node: object | null | undefined,
+  opts?: object | null,
+): asserts node is t.Accessor {
+  assert("Accessor", node, opts);
 }
 export function assertTypeScript(
   node: object | null | undefined,

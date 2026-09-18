@@ -10,7 +10,7 @@ import {
  * Share comments amongst siblings.
  */
 
-export function shareCommentsWithSiblings(this: NodePath) {
+export function shareCommentsWithSiblings(this: NodePath<t.Node | null>) {
   // NOTE: this assumes numbered keys
   if (typeof this.key === "string") return;
 
@@ -23,8 +23,8 @@ export function shareCommentsWithSiblings(this: NodePath) {
 
   const prev = this.getSibling(this.key! - 1);
   const next = this.getSibling(this.key! + 1);
-  const hasPrev = Boolean(prev.node);
-  const hasNext = Boolean(next.node);
+  const hasPrev = !!prev.node;
+  const hasNext = !!next.node;
 
   if (hasPrev) {
     if (leading) {

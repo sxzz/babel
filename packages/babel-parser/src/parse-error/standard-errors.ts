@@ -55,14 +55,10 @@ export default {
   }) => `Missing initializer in ${kind} declaration.`,
   DecoratorArgumentsOutsideParentheses:
     "Decorator arguments must be moved inside parentheses: use '@(decorator(args))' instead of '@(decorator)(args)'.",
-  DecoratorBeforeExport:
-    "Decorators must be placed *before* the 'export' keyword. Remove the 'decoratorsBeforeExport: true' option to use the 'export @decorator class {}' syntax.",
   DecoratorsBeforeAfterExport:
     "Decorators can be placed *either* before or after the 'export' keyword, but not in both locations at the same time.",
   DecoratorConstructor:
     "Decorators can't be used with a constructor. Did you mean '@dec class { ... }'?",
-  DecoratorExportClass:
-    "Decorators must be placed *after* the 'export' keyword. Remove the 'decoratorsBeforeExport: false' option to use the '@decorator export class {}' syntax.",
   DecoratorSemicolon: "Decorators must not be followed by a semicolon.",
   DecoratorStaticBlock: "Decorators can't be used with a static block.",
   DeferImportRequiresNamespace:
@@ -113,18 +109,14 @@ export default {
   IllegalLanguageModeDirective:
     "Illegal 'use strict' directive in function with non-simple parameter list.",
   IllegalReturn: "'return' outside of function.",
-  ImportAttributesUseAssert:
-    "The `assert` keyword in import attributes is deprecated and it has been replaced by the `with` keyword. You can enable the `deprecatedImportAssert` parser plugin to suppress this error.",
   ImportBindingIsString: ({ importName }: { importName: string }) =>
     `A string literal cannot be used as an imported binding.\n- Did you mean \`import { "${importName}" as foo }\`?`,
-  ImportCallArity: `\`import()\` requires exactly one or two arguments.`,
-  ImportCallNotNewExpression: "Cannot use new with import(...).",
-  ImportCallSpreadArgument: "`...` is not allowed in `import()`.",
-  ImportJSONBindingNotDefault:
-    "A JSON module can only be imported with `default`.",
-  ImportReflectionHasAssertion: "`import module x` cannot have assertions.",
-  ImportReflectionNotBinding:
-    'Only `import module x from "./module"` is valid.',
+  ImportCallArity: ({ phase }: { phase?: string | null }) =>
+    `\`import${phase ? `.${phase}` : ""}()\` requires exactly one or two arguments.`,
+  ImportCallNotNewExpression: ({ phase }: { phase?: string | null }) =>
+    `Cannot use new with import${phase ? `.${phase}` : ""}().`,
+  ImportCallSpreadArgument: ({ phase }: { phase?: string | null }) =>
+    `\`...\` is not allowed in \`import${phase ? `.${phase}` : ""}()\`.`,
   IncompatibleRegExpUVFlags:
     "The 'u' and 'v' regular expression flags cannot be enabled at the same time.",
   InvalidBigIntLiteral: "Invalid BigIntLiteral.",
@@ -132,7 +124,6 @@ export default {
   InvalidCoverDiscardElement:
     "'void' must be followed by an expression when not used in a binding position.",
   InvalidCoverInitializedName: "Invalid shorthand property initializer.",
-  InvalidDecimal: "Invalid decimal.",
   InvalidDigit: ({ radix }: { radix: number }) =>
     `Expected number in radix ${radix}.`,
   InvalidEscapeSequence: "Bad character escape sequence.",
@@ -161,8 +152,6 @@ export default {
     identifierName: string;
   }) => `Private name #${identifierName} is not defined.`,
   InvalidPropertyBindingPattern: "Binding member expression.",
-  InvalidRecordProperty:
-    "Only properties and spread elements are allowed in record definitions.",
   InvalidRestAssignmentPattern: "Invalid rest operator's argument.",
   LabelRedeclaration: ({ labelName }: { labelName: string }) =>
     `Label '${labelName}' is already declared.`,
@@ -186,8 +175,6 @@ export default {
   MissingUnicodeEscape: "Expecting Unicode escape sequence \\uXXXX.",
   MixingCoalesceWithLogical:
     "Nullish coalescing operator(??) requires parens when mixing with logical operators.",
-  ModuleAttributeDifferentFromType:
-    "The only accepted module attribute is `type`.",
   ModuleAttributeInvalidValue:
     "Only string literals are allowed as module attribute values.",
   ModuleAttributesWithDuplicateKeys: ({ key }: { key: string }) =>
@@ -223,13 +210,6 @@ export default {
     `Private names are only allowed in property accesses (\`obj.#${identifierName}\`) or in \`in\` expressions (\`#${identifierName} in obj\`).`,
   PrivateNameRedeclaration: ({ identifierName }: { identifierName: string }) =>
     `Duplicate private name #${identifierName}.`,
-  RecordExpressionBarIncorrectEndSyntaxType:
-    "Record expressions ending with '|}' are only allowed when the 'syntaxType' option of the 'recordAndTuple' plugin is set to 'bar'.",
-  RecordExpressionBarIncorrectStartSyntaxType:
-    "Record expressions starting with '{|' are only allowed when the 'syntaxType' option of the 'recordAndTuple' plugin is set to 'bar'.",
-  RecordExpressionHashIncorrectStartSyntaxType:
-    "Record expressions starting with '#{' are only allowed when the 'syntaxType' option of the 'recordAndTuple' plugin is set to 'hash'.",
-  RecordNoProto: "'__proto__' is not allowed in Record expressions.",
   RestTrailingComma: "Unexpected trailing comma after rest element.",
   SloppyFunction:
     "In non-strict mode code, functions can only be declared at top level or inside a block.",
@@ -238,19 +218,12 @@ export default {
   SourcePhaseImportRequiresDefault:
     'Only `import source x from "./module"` is valid.',
   StaticPrototype: "Classes may not have static property named prototype.",
+  SuperCallNotNewExpression: "Cannot use new with super(...).",
   SuperNotAllowed:
     "`super()` is only valid inside a class constructor of a subclass. Maybe a typo in the method name ('constructor') or not extending another class?",
   SuperPrivateField: "Private fields can't be accessed on super.",
   TrailingDecorator: "Decorators must be attached to a class element.",
-  TupleExpressionBarIncorrectEndSyntaxType:
-    "Tuple expressions ending with '|]' are only allowed when the 'syntaxType' option of the 'recordAndTuple' plugin is set to 'bar'.",
-  TupleExpressionBarIncorrectStartSyntaxType:
-    "Tuple expressions starting with '[|' are only allowed when the 'syntaxType' option of the 'recordAndTuple' plugin is set to 'bar'.",
-  TupleExpressionHashIncorrectStartSyntaxType:
-    "Tuple expressions starting with '#[' are only allowed when the 'syntaxType' option of the 'recordAndTuple' plugin is set to 'hash'.",
   UnexpectedArgumentPlaceholder: "Unexpected argument placeholder.",
-  UnexpectedAwaitAfterPipelineBody:
-    'Unexpected "await" after pipeline body; await must have parentheses in minimal proposal.',
   UnexpectedDigitAfterHash: "Unexpected digit after hash token.",
   UnexpectedImportExport:
     "'import' and 'export' may only appear at the top level.",
@@ -283,7 +256,6 @@ export default {
   UnexpectedUsingDeclaration:
     "Using declaration cannot appear in the top level when source type is `script` or in the bare case statement.",
   UnexpectedVoidPattern: "Unexpected void binding.",
-  UnsupportedBind: "Binding should be performed on object property.",
   UnsupportedDecoratorExport:
     "A decorated export must export a class declaration.",
   UnsupportedDefaultExport:

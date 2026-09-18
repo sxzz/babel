@@ -1,6 +1,5 @@
 import browserslist from "browserslist";
-import _getTargets from "../lib/index.js";
-const getTargets = _getTargets.default || _getTargets;
+import getTargets from "../lib/index.js";
 import { commonJS } from "$repo-utils";
 const { require } = commonJS(import.meta.url);
 
@@ -74,9 +73,8 @@ describe("getTargets", () => {
       delete process.env.BROWSERSLIST_CONFIG;
     });
     it("should provide fallback to any targets option", () => {
-      process.env.BROWSERSLIST_CONFIG = require.resolve(
-        "./fixtures/.browserslistrc",
-      );
+      process.env.BROWSERSLIST_CONFIG =
+        require.resolve("./fixtures/.browserslistrc");
       expect(getTargets()).toEqual({ firefox: "30.0.0", chrome: "70.0.0" });
     });
   });
@@ -228,7 +226,7 @@ describe("getTargets", () => {
 
     it("returns browsers supporting modules", () => {
       expect(baseESModulesTargets).toMatchInlineSnapshot(`
-        Object {
+        {
           "android": "61.0.0",
           "chrome": "61.0.0",
           "edge": "16.0.0",
@@ -397,11 +395,11 @@ describe("getTargets", () => {
 
   describe("exception", () => {
     it("throws when version is not a semver", () => {
-      expect(() =>
-        getTargets({ chrome: "seventy-two" }),
-      ).toThrowErrorMatchingInlineSnapshot(
-        `"@babel/helper-compilation-targets: 'seventy-two' is not a valid value for 'targets.chrome'."`,
-      );
+      expect(() => getTargets({ chrome: "seventy-two" }))
+        .toThrowErrorMatchingInlineSnapshot(`
+        "@babel/helper-compilation-targets: 'seventy-two' is not a valid value for 'targets.chrome'.
+        Cause: @babel/helper-compilation-targets: 'seventy-two' is not a valid version"
+      `);
     });
   });
 });

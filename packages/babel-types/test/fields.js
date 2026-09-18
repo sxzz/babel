@@ -1,11 +1,8 @@
 import * as t from "../lib/index.js";
+import { getNodeTypesFromValidator } from "../scripts/generators/ast-types.ts";
 import { multiple as getFixtures } from "@babel/helper-fixtures";
 import { readFileSync } from "node:fs";
 import { inspect } from "node:util";
-import { commonJS } from "$repo-utils";
-import path from "node:path";
-
-const { __dirname } = commonJS(import.meta.url);
 
 const ignoredFields = {
   ArrowFunctionExpression: { id: true },
@@ -23,14 +20,25 @@ const ignoredVisitorKeysCheckTypes = {
   Program: { interpreter: true },
 };
 
-describe("NODE_FIELDS contains all fields, VISITOR_KEYS contains all AST nodes, and the visitor order is correct, in", function () {
-  const reportedVisitorOrders = new Set();
-  const { traverseFast, VISITOR_KEYS } = t;
+const ignoredFieldsCheckTypes = {
+  // annex-b valid-assignment-target-type
+  CallExpression: [
+    "AssignmentExpression.left",
+    "ForInStatement.left",
+    "ForOfStatement.left",
+    "UpdateExpression.argument",
+  ],
+  ParenthesizedExpression: true,
+  Placeholder: true,
+};
 
-  const projectRoot = path.resolve(__dirname, "../../..");
-  const parserTestFixtureRoot = path.resolve(
-    projectRoot,
-    "./packages/babel-parser/test/fixtures",
+describe("NODE_FIELDS contains all fields and types is correct, VISITOR_KEYS contains all AST nodes, and the visitor order is correct, in", function () {
+  const reportedVisitorOrders = new Set();
+  const { traverseFast, VISITOR_KEYS, NODE_FIELDS } = t;
+
+  const parserTestFixtureRoot = new URL(
+    "../../babel-parser/test/fixtures",
+    import.meta.url,
   );
   const fixtures = getFixtures(parserTestFixtureRoot);
   for (const name in fixtures) {
@@ -99,6 +107,12 @@ describe("NODE_FIELDS contains all fields, VISITOR_KEYS contains all AST nodes, 
                 }
               }
 
+              if (missingFields !== null) {
+                throw new Error(
+                  `The following NODE_FIELDS were missing: ${inspect(missingFields)}`,
+                );
+              }
+
               if (
                 !VISITOR_KEYS[type].includes(field) &&
                 node[field] != null &&
@@ -114,12 +128,31 @@ describe("NODE_FIELDS contains all fields, VISITOR_KEYS contains all AST nodes, 
                   `${type}.${field} is an AST node (type=${node[field].type}), but "${field}" is missing in "${type}"'s current visitors definition: ${inspect(VISITOR_KEYS[type])}`,
                 );
               }
-            }
 
-            if (missingFields !== null) {
-              throw new Error(
-                `The following NODE_FIELDS were missing: ${inspect(missingFields)}`,
-              );
+              if (VISITOR_KEYS[type].includes(field)) {
+                if (node[field]) {
+                  const childTypes = Array.isArray(node[field])
+                    ? node[field].filter(n => n != null).map(n => n.type)
+                    : [node[field].type];
+                  const validator = NODE_FIELDS[type][field].validate;
+                  const validTypes = getNodeTypesFromValidator(validator);
+                  for (const childType of childTypes) {
+                    if (
+                      validTypes.includes(childType) ||
+                      ignoredFieldsCheckTypes[childType] === true ||
+                      ignoredFieldsCheckTypes[childType]?.includes(
+                        `${type}.${field}`,
+                      )
+                    ) {
+                      continue;
+                    }
+
+                    throw new Error(
+                      `${type}.${field} is an AST node (type=${childType}), but the validator only allows the following types: ${inspect(validTypes)}`,
+                    );
+                  }
+                }
+              }
             }
 
             if (

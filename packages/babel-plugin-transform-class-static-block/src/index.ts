@@ -1,5 +1,5 @@
 import { declare } from "@babel/helper-plugin-utils";
-import type { NodePath, Scope, types as t } from "@babel/core";
+import type { NodePath, types as t } from "@babel/core";
 
 import {
   buildNamedEvaluationVisitor,
@@ -10,11 +10,10 @@ import {
 /**
  * Generate a uid that is not in `denyList`
  *
- * @param {Scope} scope
  * @param {Set<string>} denyList a deny list that the generated uid should avoid
  * @returns
  */
-function generateUid(scope: Scope, denyList: Set<string>) {
+function generateUid(denyList: Set<string>) {
   const name = "";
   let uid;
   let i = 1;
@@ -32,7 +31,7 @@ function mapLast<T>(arr: T[], fn: (value: T) => T): T[] {
 }
 
 export default declare(({ types: t, template, traverse, assertVersion }) => {
-  assertVersion(REQUIRED_VERSION("^7.12.0 || ^8.0.0-0"));
+  assertVersion(REQUIRED_VERSION("^7.12.0 || ^8.0.0"));
 
   const rawNamedEvaluationVisitor = buildNamedEvaluationVisitor(
     (path: NodePath) => {
@@ -51,10 +50,10 @@ export default declare(({ types: t, template, traverse, assertVersion }) => {
       }
       return false;
     },
-    (classPath: NodePath<t.ClassExpression>, state, name) => {
+    (classPath, state, name) => {
       const nameNode = typeof name === "string" ? t.stringLiteral(name) : name;
 
-      classPath.get("body").unshiftContainer(
+      (classPath as NodePath<t.ClassExpression>).get("body").unshiftContainer(
         "body",
         t.staticBlock([
           template.statement.ast`
@@ -133,17 +132,20 @@ export default declare(({ types: t, template, traverse, assertVersion }) => {
             !parentPath.isStatement()
           );
           if (parentPath) {
-            namedEvaluationVisitor[parentPath.type]?.enter.forEach(f =>
-              f.call(this, parentPath, this),
-            );
+            (
+              namedEvaluationVisitor[parentPath.type]?.enter as ((
+                this: any,
+                path: NodePath<t.Node>,
+                state: any,
+              ) => void)[]
+            )?.forEach(f => f.call(this, parentPath, this));
           }
         }
 
         const pendingStaticBlocks: t.StaticBlock[] = [];
         let lastStaticProp:
-          | null
-          | NodePath<t.ClassProperty>
-          | NodePath<t.ClassPrivateProperty> = null;
+          null | NodePath<t.ClassProperty> | NodePath<t.ClassPrivateProperty> =
+          null;
 
         for (const path of classBody.get("body")) {
           if (path.isStaticBlock()) {
@@ -210,7 +212,7 @@ export default declare(({ types: t, template, traverse, assertVersion }) => {
                 privateNames.add(path.get("key.id").node.name);
               }
             }
-            const staticBlockPrivateId = generateUid(scope, privateNames);
+            const staticBlockPrivateId = generateUid(privateNames);
             const staticBlockRef = t.privateName(
               t.identifier(staticBlockPrivateId),
             );

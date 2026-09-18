@@ -1,10 +1,14 @@
 import type { HubInterface } from "../hub.ts";
 import type TraversalContext from "../context.ts";
-import type { ExplodedTraverseOptions } from "../index.ts";
 import * as virtualTypes from "./lib/virtual-types.ts";
 import { createDebug } from "obug";
 import traverse from "../index.ts";
-import type { Visitor } from "../types.ts";
+import type {
+  Visitor,
+  VisitorProp,
+  TraverseOptions,
+  ExplodedVisitor,
+} from "../types.ts";
 import Scope from "../scope/index.ts";
 import { validate } from "@babel/types";
 import * as t from "@babel/types";
@@ -24,8 +28,8 @@ import * as NodePath_modification from "./modification.ts";
 import * as NodePath_family from "./family.ts";
 import * as NodePath_comments from "./comments.ts";
 import * as NodePath_virtual_types_validator from "./lib/virtual-types-validator.ts";
-import type { NodePathAssertions } from "./generated/asserts.ts";
-import type { NodePathValidators } from "./generated/validators.ts";
+import type { NodePathAssertions } from "./generated/asserts.d.ts";
+import type { NodePathValidators } from "./generated/validators.d.ts";
 import { setup } from "./context.ts";
 
 const debug = createDebug("babel");
@@ -74,7 +78,7 @@ const NodePath_Final = class NodePath {
 
   contexts: TraversalContext[] = [];
   state: any = null;
-  declare opts: ExplodedTraverseOptions;
+  declare opts: TraverseOptions & ExplodedVisitor;
 
   @bit.storage _traverseFlags: number = 0;
   @bit(REMOVED) accessor removed = false;
@@ -161,8 +165,25 @@ const NodePath_Final = class NodePath {
     return this.hub.buildError(this.node!, msg, Error);
   }
 
-  traverse<T>(this: NodePath_Final, visitor: Visitor<T>, state: T): void;
-  traverse(this: NodePath_Final, visitor: Visitor): void;
+  traverse<S, T extends object>(
+    this: NodePath_Final,
+    visitor: {
+      [P in keyof T]: VisitorProp<S, P & string>;
+    },
+    state: S,
+  ): void;
+  traverse<T extends object>(
+    this: NodePath_Final,
+    visitor: {
+      [P in keyof T]: VisitorProp<any, P & string>;
+    },
+  ): void;
+  traverse<S>(
+    this: NodePath_Final,
+    visitor: TraverseOptions & Visitor<S>,
+    state: S,
+  ): void;
+  traverse(this: NodePath_Final, visitor: TraverseOptions & Visitor<any>): void;
   traverse(this: NodePath_Final, visitor: any, state?: any) {
     traverse(this.node, visitor, this.scope, state, this);
   }
@@ -173,9 +194,9 @@ const NodePath_Final = class NodePath {
     this.node[key] = node;
   }
 
-  getPathLocation(this: NodePath_Final): string {
+  getPathLocation(this: NodePath_Final<t.Node | null>): string {
     const parts = [];
-    let path: NodePath_Final = this;
+    let path: NodePath_Final<t.Node | null> = this;
     do {
       let key = path.key;
       if (path.inList) key = `${path.listKey}[${key}]`;
@@ -184,7 +205,7 @@ const NodePath_Final = class NodePath {
     return parts.join(".");
   }
 
-  debug(this: NodePath_Final, message: string) {
+  debug(this: NodePath_Final<t.Node | null>, message: string) {
     if (!debug.enabled) return;
     debug(`${this.getPathLocation()} ${this.type}: ${message}`);
   }
@@ -243,7 +264,6 @@ const methods = {
   evaluate: NodePath_evaluation.evaluate,
 
   // NodePath_conversion
-  toComputedKey: NodePath_conversion.toComputedKey,
   ensureBlock: NodePath_conversion.ensureBlock,
   unwrapFunctionEnvironment: NodePath_conversion.unwrapFunctionEnvironment,
   arrowFunctionToExpression: NodePath_conversion.arrowFunctionToExpression,
@@ -271,7 +291,6 @@ const methods = {
 
   // NodePath_context
   isDenylisted: NodePath_context.isDenylisted,
-  visit: NodePath_context.visit,
   skip: NodePath_context.skip,
   skipKey: NodePath_context.skipKey,
   stop: NodePath_context.stop,
@@ -358,18 +377,14 @@ interface NodePathOverwrites {
     this: NodePath_Final,
   ): asserts this is NodePath_Final<
     (
-      | t.Loop
-      | t.WithStatement
-      | t.Function
-      | t.LabeledStatement
-      | t.CatchClause
+      t.Loop | t.WithStatement | t.Function | t.LabeledStatement | t.CatchClause
     ) & { body: t.BlockStatement }
   >;
   /**
    * @see ./introspection.ts for implementation.
    */
   isStatementOrBlock(
-    this: NodePath_Final,
+    this: NodePath_Final<t.Node | null>,
   ): this is NodePath_Final<t.Statement | t.Block>;
 }
 
@@ -380,8 +395,12 @@ interface NodePath<
   T extends t.Node["type"] | null = N extends null
     ? null
     : NonNullable<N>["type"],
-  P extends t.Node = NonNullable<t.ParentMaps[NonNullable<T>]>,
-> extends InstanceType<typeof NodePath_Final>,
+  P extends t.Node = T extends null
+    ? t.Node
+    : NonNullable<t.ParentMaps[NonNullable<T>]>,
+>
+  extends
+    InstanceType<typeof NodePath_Final>,
     NodePathAssertions,
     NodePathValidators,
     NodePathMixins,

@@ -1,11 +1,6 @@
-import type Parser from "./parser/index.ts";
-import type { PluginConfig } from "./typings.ts";
+import type { PluginConfig } from "./typings.d.ts";
 
 export type Plugin = PluginConfig;
-
-export type MixinPlugin = (
-  superClass: new (...args: any) => Parser,
-) => new (...args: any) => Parser;
 
 const PIPELINE_PROPOSALS = ["fsharp", "hack"];
 const TOPIC_TOKENS = ["^^", "@@", "^", "%", "#"];
@@ -16,26 +11,6 @@ export function validatePlugins(pluginsMap: Map<string, any>) {
       throw new Error(
         "Cannot use the decorators and decorators-legacy plugin together",
       );
-    }
-
-    const decoratorsBeforeExport =
-      pluginsMap.get("decorators").decoratorsBeforeExport;
-    if (
-      decoratorsBeforeExport != null &&
-      typeof decoratorsBeforeExport !== "boolean"
-    ) {
-      throw new Error(
-        "'decoratorsBeforeExport' must be a boolean, if specified.",
-      );
-    }
-
-    const allowCallParenthesized =
-      pluginsMap.get("decorators").allowCallParenthesized;
-    if (
-      allowCallParenthesized != null &&
-      typeof allowCallParenthesized !== "boolean"
-    ) {
-      throw new Error("'allowCallParenthesized' must be a boolean.");
     }
   }
 
@@ -178,10 +153,5 @@ export const mixinPlugins = {
 };
 
 export const mixinPluginNames = Object.keys(mixinPlugins) as readonly (
-  | "estree"
-  | "jsx"
-  | "flow"
-  | "typescript"
-  | "v8intrinsic"
-  | "placeholders"
+  "estree" | "jsx" | "flow" | "typescript" | "v8intrinsic" | "placeholders"
 )[];

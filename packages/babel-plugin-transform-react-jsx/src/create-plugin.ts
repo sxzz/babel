@@ -56,14 +56,20 @@ export interface Options {
   runtime?: "automatic" | "classic";
   throwIfNamespace?: boolean;
 }
-export default function createPlugin({
+
+export interface OptionsDevelopment extends Options {
+  sourceSelf?: boolean;
+}
+
+export default function createPlugin<const Development extends boolean>({
   name,
   development,
 }: {
   name: string;
-  development: boolean;
+  development: Development;
 }) {
-  return declare((_, options: Options) => {
+  type Opts = Development extends true ? OptionsDevelopment : Options;
+  return declare((_, options: Opts) => {
     const {
       pure: PURE_ANNOTATION,
 
@@ -77,6 +83,10 @@ export default function createPlugin({
       pragma: PRAGMA_DEFAULT = DEFAULT.pragma,
       pragmaFrag: PRAGMA_FRAG_DEFAULT = DEFAULT.pragmaFrag,
     } = options;
+
+    const sourceSelf = development
+      ? (options as OptionsDevelopment).sourceSelf
+      : undefined;
 
     if ("useSpread" in options) {
       throw new Error(
@@ -208,7 +218,7 @@ You can set \`throwIfNamespace: false\` to bypass this warning.`,
               );
             }
 
-            if (development) {
+            if (development && sourceSelf) {
               // Returns whether the class has specified a superclass.
               function isDerivedClass(classNode: Class) {
                 return classNode.superClass !== null;
@@ -246,12 +256,12 @@ You can set \`throwIfNamespace: false\` to bypass this warning.`,
                 return true;
               }
 
-              let fileNameIdentifier: Identifier;
+              let fileNameIdentifier: Identifier | undefined;
               function makeSource(node: t.Node) {
                 const location = node.loc;
                 if (!location) {
                   // the element was generated and doesn't have location information
-                  return path.scope.buildUndefinedNode();
+                  return t.buildUndefinedNode();
                 }
 
                 if (!fileNameIdentifier) {
@@ -327,7 +337,7 @@ You can set \`throwIfNamespace: false\` to bypass this warning.`,
           exit(path, file) {
             let callExpr;
             if (get(file, "runtime") === "classic") {
-              callExpr = buildCreateElementFragmentCall(path, file);
+              callExpr = buildCreateElementFragmentCall(path, file)!;
             } else {
               callExpr = buildJSXFragmentCall(path, file);
             }
@@ -593,14 +603,16 @@ You can set \`throwIfNamespace: false\` to bypass this warning.`,
         // automatically include __source and __self in this plugin
         // so we can eliminate the need for separate Babel plugins in Babel 8
         args.push(
-          extracted.key ?? path.scope.buildUndefinedNode(),
+          extracted.key ?? t.buildUndefinedNode(),
           t.booleanLiteral(children.length > 1),
         );
-        if (extracted.__source) {
-          args.push(extracted.__source);
-          if (extracted.__self) args.push(extracted.__self);
-        } else if (extracted.__self) {
-          args.push(path.scope.buildUndefinedNode(), extracted.__self);
+        if (sourceSelf) {
+          if (extracted.__source) {
+            args.push(extracted.__source);
+            if (extracted.__self) args.push(extracted.__self);
+          } else if (extracted.__self) {
+            args.push(t.buildUndefinedNode(), extracted.__self);
+          }
         }
       } else if (extracted.key !== undefined) {
         args.push(extracted.key);
@@ -621,7 +633,7 @@ You can set \`throwIfNamespace: false\` to bypass this warning.`,
       // In React.jsx, children is no longer a separate argument, but passed in
       // through the argument object
       if (children?.length > 0) {
-        props.push(buildChildrenProperty(children));
+        props.push(buildChildrenProperty(children)!);
       }
 
       return t.objectExpression(props);
@@ -646,7 +658,7 @@ You can set \`throwIfNamespace: false\` to bypass this warning.`,
                   //@ts-expect-error The children here contains JSXSpreadChild,
                   // which will be thrown later
                   children,
-                ),
+                )!,
               ]
             : [],
         ),
@@ -654,7 +666,7 @@ You can set \`throwIfNamespace: false\` to bypass this warning.`,
 
       if (development) {
         args.push(
-          path.scope.buildUndefinedNode(),
+          t.buildUndefinedNode(),
           t.booleanLiteral(children.length > 1),
         );
       }
@@ -704,7 +716,7 @@ You can set \`throwIfNamespace: false\` to bypass this warning.`,
         openingPath.node,
       );
 
-      let tagName: string;
+      let tagName: string | undefined;
       if (t.isIdentifier(tagExpr)) {
         tagName = tagExpr.name;
       } else if (t.isStringLiteral(tagExpr)) {
@@ -712,7 +724,7 @@ You can set \`throwIfNamespace: false\` to bypass this warning.`,
       }
 
       if (t.react.isCompatTag(tagName)) {
-        return t.stringLiteral(tagName);
+        return t.stringLiteral(tagName!);
       } else {
         return tagExpr;
       }
@@ -792,7 +804,7 @@ You can set \`throwIfNamespace: false\` to bypass this warning.`,
     source: string,
   ): () => Identifier | MemberExpression {
     return () => {
-      const actualSource = getSource(source, importName);
+      const actualSource = getSource(source, importName)!;
       if (isModule(path)) {
         let reference = get(pass, `imports/${importName}`);
         if (reference) return t.cloneNode(reference);

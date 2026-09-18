@@ -18,9 +18,12 @@ import {
   findConfigUpwards,
   resolveShowConfigPath,
   ROOT_CONFIG_FILENAMES,
-} from "./files/index.ts";
-import type { ConfigFile, IgnoreFile } from "./files/index.ts";
-import { resolveTargets } from "./resolve-targets.ts";
+  type ConfigFile,
+  type IgnoreFile,
+  // eslint-disable-next-line import/no-unresolved, import/extensions
+} from "#config/files";
+// eslint-disable-next-line import/no-unresolved, import/extensions
+import { resolveTargets } from "#config/resolve-targets";
 
 function resolveRootMode(rootDir: string, rootMode: RootMode): string {
   switch (rootMode) {
@@ -66,7 +69,7 @@ export type PrivPartialConfig = {
 };
 
 export default function* loadPrivatePartialConfig(
-  inputOpts: InputOptions,
+  inputOpts: InputOptions | null | undefined,
 ): Handler<PrivPartialConfig | null> {
   if (
     inputOpts != null &&
@@ -114,7 +117,7 @@ export default function* loadPrivatePartialConfig(
     assumptions: {},
   };
   configChain.options.forEach(opts => {
-    mergeOptions(merged as any, opts);
+    mergeOptions(merged, opts);
   });
 
   const options: NormalizedOptions = {
@@ -158,7 +161,7 @@ export default function* loadPrivatePartialConfig(
 export function* loadPartialConfig(
   opts?: InputOptions,
 ): Handler<PartialConfig | null> {
-  let showIgnoredFiles = false;
+  let showIgnoredFiles: boolean | undefined = false;
   // We only extract showIgnoredFiles if opts is an object, so that
   // loadPrivatePartialConfig can throw the appropriate error if it's not.
   if (typeof opts === "object" && opts !== null && !Array.isArray(opts)) {

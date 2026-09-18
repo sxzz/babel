@@ -2,8 +2,7 @@ import { parse } from "@babel/parser";
 import * as t from "@babel/types";
 import { describeNoCITGM } from "$repo-utils";
 
-import _traverse from "../lib/index.js";
-const traverse = _traverse.default || _traverse;
+import traverse from "../lib/index.js";
 
 import { callFromAtBabelPackage } from "./helpers/@babel/fake-babel-package/index.js";
 
@@ -371,6 +370,20 @@ describe("traverse", function () {
       expect(result).toBe(true);
     });
 
+    it("#11350: this.hub should not be undefined while traversing a program or file", function () {
+      const ast = parse("try {} catch (e) {}");
+      traverse(ast, {
+        enter(path) {
+          expect(
+            path.hub.buildError(path.node, "This should work"),
+          ).toStrictEqual(TypeError("This should work"));
+          // otherwise, this throws '"Cannot read properties of undefined (reading 'buildError')"'
+          expect(path.getPathLocation()).toBe("program");
+          path.stop();
+        },
+      });
+    });
+
     it("traverse no parent path", function () {
       const code = `
         var foo = {
@@ -393,6 +406,28 @@ describe("traverse", function () {
       expect(ast.program.body[0].declarations[0].init.properties[0].value).toBe(
         result,
       );
+    });
+
+    it("#18121: `replaceWith` in `Visitor#exit` should not stop traversal", function () {
+      const ast = parse("const a = 1;");
+      const log = [];
+      traverse(ast.program, {
+        exit(path) {
+          log.push(path.getPathLocation());
+          if (path.type === "Identifier" && path.node.name === "a") {
+            path.replaceWith(t.identifier("b"));
+          }
+        },
+      });
+      expect(log).toMatchInlineSnapshot(`
+        [
+          "body[0].declarations[0].id",
+          "body[0].declarations[0].id",
+          "body[0].declarations[0].init",
+          "body[0].declarations[0]",
+          "body[0]",
+        ]
+      `);
     });
   });
   describe("path.stop()", () => {

@@ -75,25 +75,29 @@ export function hasDataSourcemap(code: string): boolean {
   return pos !== -1 && code.lastIndexOf("//# sourceMappingURL") < pos;
 }
 
-const CALLER = {
+const REPL_CALLER = {
   name: "@babel/cli",
   supportsStaticESM: false,
   supportsDynamicImport: false,
   supportsExportNamespaceFrom: false,
 };
 
+const COMPILE_CALLER = {
+  name: "@babel/cli",
+};
+
 export function transformRepl(filename: string, code: string, opts: any) {
   opts = {
     ...opts,
     sourceMaps: opts.sourceMaps === "inline" ? true : opts.sourceMaps,
-    caller: CALLER,
+    caller: REPL_CALLER,
     filename,
   };
 
   return new Promise<FileResult>((resolve, reject) => {
     babel.transform(code, opts, (err, result) => {
       if (err) reject(err);
-      else resolve(result);
+      else resolve(result!);
     });
   });
 }
@@ -101,7 +105,7 @@ export function transformRepl(filename: string, code: string, opts: any) {
 export async function compile(filename: string, opts: InputOptions) {
   opts = {
     ...opts,
-    caller: CALLER,
+    caller: COMPILE_CALLER,
   };
 
   const result = await babel.transformFileAsync(filename, opts);

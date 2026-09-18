@@ -6,6 +6,7 @@ import { skipTransparentExprWrapperNodes } from "@babel/helper-skip-transparent-
 export interface Options {
   allowArrayLike?: boolean;
   assumeArray?: boolean;
+  /** @deprecated Use the 'iterableIsArray' and 'skipForOfIteratorClosing' assumptions instead. */
   loose?: boolean;
 }
 
@@ -32,7 +33,14 @@ function buildLoopBody(
 }
 
 export default declare((api, options: Options) => {
-  api.assertVersion(REQUIRED_VERSION(7));
+  api.assertVersion(REQUIRED_VERSION("^7.0.0-0 || ^8.0.0"));
+
+  if ("loose" in options) {
+    console.warn(
+      "@babel/plugin-transform-for-of: The 'loose' option has been deprecated, " +
+        "use the 'iterableIsArray' and 'skipForOfIteratorClosing' assumptions instead (https://babeljs.io/assumptions).",
+    );
+  }
 
   {
     const { assumeArray, allowArrayLike, loose } = options;
@@ -80,11 +88,9 @@ export default declare((api, options: Options) => {
             return;
           }
 
-          const right = skipTransparentExprWrapperNodes(
-            path.node.right,
-          ) as t.Expression;
+          const right = skipTransparentExprWrapperNodes(path.node.right);
           const i = scope.generateUidIdentifier("i");
-          let array: t.Identifier | t.ThisExpression =
+          let array: t.Identifier | t.ThisExpression | null =
             scope.maybeGenerateMemoised(right, true);
           if (
             !array &&

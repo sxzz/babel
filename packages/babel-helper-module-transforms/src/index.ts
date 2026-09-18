@@ -28,9 +28,9 @@ export { hasExports, isSideEffectImport, isModule, rewriteThis };
 
 export interface RewriteModuleStatementsAndPrepareHeaderOptions {
   exportName?: string;
-  strict: boolean;
+  strict?: boolean;
   allowTopLevelThis?: boolean;
-  strictMode: boolean;
+  strictMode?: boolean;
   loose?: boolean;
   importInterop?: ImportInterop;
   noInterop?: boolean;
@@ -63,7 +63,7 @@ export function rewriteModuleStatementsAndPrepareHeader(
     strictMode,
     noInterop,
     importInterop = noInterop ? "none" : "babel",
-    // TODO(Babel 8): After that `lazy` implementation is moved to the CJS
+    // TODO(Babel 9): After that `lazy` implementation is moved to the CJS
     // transform, remove this parameter.
     lazy,
     getWrapperPayload = Lazy.toGetWrapperPayload(lazy ?? false),
@@ -121,7 +121,6 @@ export function rewriteModuleStatementsAndPrepareHeader(
   // Create all of the statically known named exports.
   headers.push(
     ...buildExportInitializationStatements(
-      path,
       meta,
       wrapReference,
       constantReexports,
@@ -152,7 +151,7 @@ export function wrapInterop(
   programPath: NodePath<t.Program>,
   expr: t.Expression,
   type: InteropType,
-): t.CallExpression {
+): t.CallExpression | null {
   if (type === "none") {
     return null;
   }
@@ -280,7 +279,7 @@ function buildReexportsFromMeta(
   meta: ModuleMetadata,
   metadata: SourceModuleMetadata,
   constantReexports: boolean,
-  wrapReference: (ref: t.Expression, payload: unknown) => t.Expression | null,
+  wrapReference: (ref: t.Identifier, payload: unknown) => t.Expression | null,
 ): t.Statement[] {
   let namespace: t.Expression = t.identifier(metadata.name);
   namespace = wrapReference(namespace, metadata.wrap) ?? namespace;
@@ -436,7 +435,6 @@ function buildExportNameListDeclaration(
  * export names with their expected values.
  */
 function buildExportInitializationStatements(
-  programPath: NodePath,
   metadata: ModuleMetadata,
   wrapReference: (ref: t.Expression, payload: unknown) => t.Expression | null,
   constantReexports: boolean | void = false,
@@ -493,7 +491,7 @@ function buildExportInitializationStatements(
   const results = [];
   if (noIncompleteNsImportDetection) {
     for (const [, initStatement] of initStatements) {
-      results.push(initStatement);
+      results.push(initStatement!);
     }
   } else {
     // We generate init statements (`exports.a = exports.b = ... = void 0`)
@@ -509,7 +507,7 @@ function buildExportInitializationStatements(
               buildInitStatement(
                 metadata,
                 uninitializedExportNames,
-                programPath.scope.buildUndefinedNode(),
+                t.buildUndefinedNode(),
               ),
             );
             // reset after uninitializedExportNames has been transformed
@@ -526,7 +524,7 @@ function buildExportInitializationStatements(
           buildInitStatement(
             metadata,
             uninitializedExportNames,
-            programPath.scope.buildUndefinedNode(),
+            t.buildUndefinedNode(),
           ),
         );
       }

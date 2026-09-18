@@ -1,6 +1,6 @@
-FLOW_COMMIT = b7f56844ec194c8901a18d11e6b356dd56b3bdeb
-TEST262_COMMIT = bc6f8ef1fa5e9c9365a25aafe303859cb09b4812
-TYPESCRIPT_COMMIT = afc463980f55d634c56dfedc6852f6f46f596621
+FLOW_COMMIT = ce660230358806c4d210ad24c170b02f5395bfce
+TEST262_COMMIT = 35d566604512cba908054eec49f85e64a59f3091
+TYPESCRIPT_COMMIT = 2dfdbbabae955186f821925c629a37d8df76bab2
 
 SOURCES = packages codemods eslint
 
@@ -11,13 +11,13 @@ COMMA_SEPARATED_SOURCES = $(subst $(SPACE),$(COMMA),$(SOURCES))
 
 YARN := yarn
 NODE := $(YARN) node
-MAKEJS := node Makefile.mjs
+MAKEJS := node Makefile.js
 
 
 .PHONY: build build-dist watch lint fix clean test-clean test-only test test-ci publish bootstrap
 
-Makefile.mjs: Makefile.source.mjs yarn.lock .yarn/install-state.gz
-	$(NODE) ./scripts/pack-script.js
+Makefile.js: Makefile.source.ts yarn.lock .yarn/install-state.gz
+	$(NODE) ./scripts/pack-script.ts
 
 build:
 	$(MAKEJS) build
@@ -33,6 +33,9 @@ generate-tsconfig:
 
 generate-type-helpers:
 	$(MAKEJS) generate-type-helpers
+
+bundle-babel-parser-dts:
+	$(MAKEJS) bundle-babel-parser-dts
 
 build-flow-typings:
 	$(MAKEJS) build-flow-typings
@@ -70,7 +73,7 @@ lint-ci:
 	$(MAKEJS) lint-ci
 
 generate-readme:
-	$(NODE) scripts/generators/readmes.js
+	$(NODE) scripts/generators/readmes.ts
 
 lint:
 	$(MAKEJS) lint
@@ -123,6 +126,7 @@ clean-all:
 
 
 build-no-bundle-ci: bootstrap-only
+	$(MAKE) bundle-babel-parser-dts
 	$(YARN) gulp build-dev
 	$(MAKE) build-flow-typings
 	$(MAKE) build-dist
@@ -186,30 +190,6 @@ new-version-checklist:
 
 new-version:
 	$(MAKEJS) new-version
-
-new-babel-8-version:
-	$(MAKEJS) new-babel-8-version
-
-new-babel-8-version-create-commit:
-	$(MAKEJS) new-babel-8-version-create-commit
-
-new-babel-8-version-create-commit-ci:
-	$(MAKEJS) new-babel-8-version-create-commit-ci
-
-# NOTE: Run make new-version first
-publish:
-	@echo "Please confirm you have stopped make watch. (y)es, [N]o:"; \
-	read CLEAR; \
-	if [ "_$$CLEAR" != "_y" ]; then \
-		exit 1; \
-	fi
-	$(MAKE) prepublish
-ifeq ("$(BABEL_8_BREAKING)", "true")
-	USE_ESM=true $(YARN) release-tool publish --tag next
-else
-	$(YARN) release-tool publish
-endif
-	$(MAKE) clean
 
 publish-test:
 ifneq ("$(I_AM_USING_VERDACCIO)", "I_AM_SURE")

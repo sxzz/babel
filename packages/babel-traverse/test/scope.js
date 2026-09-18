@@ -1,9 +1,7 @@
 import { parse } from "@babel/parser";
 import * as t from "@babel/types";
-import { IS_BABEL_8 } from "$repo-utils";
 
-import _traverse, { NodePath } from "../lib/index.js";
-const traverse = _traverse.default || _traverse;
+import traverse, { NodePath } from "../lib/index.js";
 
 function getPath(code, options) {
   const ast =
@@ -527,7 +525,7 @@ describe("scope", () => {
     describe("reference paths", () => {
       it("param referenced in function body", function () {
         const path = getIdentifierPath("function square(n) { return n * n}");
-        const referencePaths = path.context.scope.bindings.n.referencePaths;
+        const referencePaths = path.scope.bindings.n.referencePaths;
         expect(referencePaths).toHaveLength(2);
         expect(referencePaths[0].node.loc.start).toEqual({
           line: 1,
@@ -1182,12 +1180,6 @@ describe("scope", () => {
       const renamedPropertyMatcher = expect.objectContaining({
         type: "ObjectProperty",
         shorthand: false,
-        ...(IS_BABEL_8()
-          ? {}
-          : {
-              // eslint-disable-next-line jest/no-conditional-expect
-              extra: expect.objectContaining({ shorthand: false }),
-            }),
         key: expect.objectContaining({ name: "a" }),
         value: expect.objectContaining({
           name: expect.not.stringMatching(/^a$/),
@@ -1232,12 +1224,6 @@ describe("scope", () => {
       const originalPropertyMatcher = expect.objectContaining({
         type: "ObjectProperty",
         shorthand: true,
-        ...(IS_BABEL_8()
-          ? {}
-          : {
-              // eslint-disable-next-line jest/no-conditional-expect
-              extra: expect.objectContaining({ shorthand: true }),
-            }),
         key: expect.objectContaining({ name: "b" }),
         value: expect.objectContaining({ name: "b" }),
       });

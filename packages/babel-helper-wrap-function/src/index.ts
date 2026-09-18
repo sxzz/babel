@@ -112,7 +112,9 @@ function classOrObjectMethod(
     ];
 
     (
-      path.get("body.body.0.argument.callee.object.arguments.0") as NodePath
+      path.get(
+        "body.body.0.argument.callee.object.arguments.0",
+      ) as NodePath<t.FunctionExpression>
     ).unwrapFunctionEnvironment();
   } else {
     // return asyncToGenerator(function*() { ... })();
@@ -122,7 +124,9 @@ function classOrObjectMethod(
 
     // Unwrap the wrapper IIFE's environment so super and this and such still work.
     (
-      path.get("body.body.0.argument.callee.arguments.0") as NodePath
+      path.get(
+        "body.body.0.argument.callee.arguments.0",
+      ) as NodePath<t.FunctionExpression>
     ).unwrapFunctionEnvironment();
   }
 
@@ -137,7 +141,6 @@ function plainFunction(
   callId: t.Expression,
   noNewArrows: boolean,
   ignoreFunctionLength: boolean,
-  hadName: boolean,
 ) {
   let path: NodePath<
     | t.FunctionDeclaration
@@ -145,17 +148,13 @@ function plainFunction(
     | t.CallExpression
     | t.ArrowFunctionExpression
   > = inPath;
-  let node;
   let functionId = null;
   const nodeParams = inPath.node.params;
 
   if (path.isArrowFunctionExpression()) {
     path = path.arrowFunctionToExpression({ noNewArrows });
-
-    node = path.node;
-  } else {
-    node = path.node;
   }
+  const node = path.node;
 
   const isDeclaration = isFunctionDeclaration(node);
 
@@ -179,8 +178,7 @@ function plainFunction(
 
   const wrapperArgs = {
     NAME: functionId || null,
-    // TODO: Use `functionId` rather than `hadName` for the condition
-    REF: path.scope.generateUidIdentifier(hadName ? functionId.name : "ref"),
+    REF: path.scope.generateUidIdentifier(functionId ? functionId.name : "ref"),
     FUNCTION: built,
     PARAMS: params,
   };
@@ -192,7 +190,7 @@ function plainFunction(
   } else {
     let container;
 
-    if (hadName) {
+    if (functionId) {
       container = buildNamedExpressionWrapper(wrapperArgs);
     } else {
       container = buildAnonymousExpressionWrapper(wrapperArgs);
@@ -210,15 +208,13 @@ function plainFunction(
 export default function wrapFunction(
   path: NodePath<t.Function>,
   callId: t.Expression,
-  // TODO(Babel 8): Consider defaulting to false for spec compliance
+  // TODO(Babel 9): Consider defaulting to false for spec compliance
   noNewArrows: boolean = true,
   ignoreFunctionLength: boolean = false,
 ) {
   if (path.isMethod()) {
     classOrObjectMethod(path, callId, ignoreFunctionLength);
   } else {
-    const hadName = "id" in path.node && !!path.node.id;
-
     // @ts-expect-error It is invalid to call this on an arrow expression,
     // but we'll convert it to a function expression anyway.
     path = path.ensureFunctionName(false);
@@ -227,7 +223,6 @@ export default function wrapFunction(
       callId,
       noNewArrows,
       ignoreFunctionLength,
-      hadName,
     );
   }
 }

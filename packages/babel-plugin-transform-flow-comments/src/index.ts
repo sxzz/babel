@@ -4,7 +4,7 @@ import { types as t, type NodePath } from "@babel/core";
 import generateCode from "@babel/generator";
 
 export default declare(api => {
-  api.assertVersion(REQUIRED_VERSION(7));
+  api.assertVersion(REQUIRED_VERSION("^7.0.0-0 || ^8.0.0"));
 
   function commentFromString(comment: string | t.Comment): t.Comment {
     return typeof comment === "string"
@@ -177,8 +177,7 @@ export default declare(api => {
       ClassProperty(path) {
         const { node } = path;
         if (!node.value) {
-          // @ts-expect-error(Babel 7 vs Babel 8) TODO(Babel 8)
-          wrapInFlowComment(path);
+          wrapInFlowComment(path as NodePath<t.ClassProperty>);
         } else if (node.typeAnnotation) {
           attachComment({
             ofPath: path.get("typeAnnotation"),
@@ -278,7 +277,6 @@ export default declare(api => {
             comments = [];
           }
 
-          // superTypeParameters is for compatibility with Babel 7
           if (node.superTypeArguments) {
             const superTypeArguments = path.get(
               "superTypeArguments",

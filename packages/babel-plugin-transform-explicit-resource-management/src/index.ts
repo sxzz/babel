@@ -12,9 +12,7 @@ const enum USING_KIND {
 function isAnonymousFunctionDefinition(
   node: t.Node,
 ): node is
-  | t.ClassExpression
-  | t.ArrowFunctionExpression
-  | t.FunctionExpression {
+  t.ClassExpression | t.ArrowFunctionExpression | t.FunctionExpression {
   return (
     t.isArrowFunctionExpression(node) ||
     ((t.isFunctionExpression(node) || t.isClassExpression(node)) && !node.id)
@@ -34,7 +32,7 @@ function emitSetFunctionNameCall(
 
 export default declare(api => {
   // The first Babel 7 version with usingCtx helper support.
-  api.assertVersion(REQUIRED_VERSION("^7.23.9 || ^8.0.0-0"));
+  api.assertVersion(REQUIRED_VERSION("^7.23.9 || ^8.0.0"));
 
   const TOP_LEVEL_USING = new Map<t.Node, USING_KIND>();
 
@@ -47,66 +45,67 @@ export default declare(api => {
     );
   }
 
-  const transformUsingDeclarationsVisitor: Visitor<PluginPass> = {
-    ForOfStatement(path: NodePath<t.ForOfStatement>) {
-      const { left } = path.node;
-      if (!isUsingDeclaration(left)) return;
+  const transformUsingDeclarationsVisitor: Visitor<PluginPass> =
+    api.traverse.explode({
+      ForOfStatement(path: NodePath<t.ForOfStatement>) {
+        const { left } = path.node;
+        if (!isUsingDeclaration(left)) return;
 
-      const { id } = left.declarations[0];
-      const tmpId = path.scope.generateUidIdentifierBasedOnNode(id);
-      left.declarations[0].id = tmpId;
-      left.kind = "const";
+        const { id } = left.declarations[0];
+        const tmpId = path.scope.generateUidIdentifierBasedOnNode(id);
+        left.declarations[0].id = tmpId;
+        left.kind = "const";
 
-      path.ensureBlock();
-      unshiftForXStatementBody(path, [
-        t.variableDeclaration("using", [
-          t.variableDeclarator(id, t.cloneNode(tmpId)),
-        ]),
-      ]);
-    },
-    "BlockStatement|StaticBlock"(
-      path: NodePath<t.BlockStatement | t.StaticBlock>,
-      state,
-    ) {
-      let ctx: t.Identifier | null = null;
-      let needsAwait = false;
-      const scope = path.scope;
+        path.ensureBlock();
+        unshiftForXStatementBody(path, [
+          t.variableDeclaration("using", [
+            t.variableDeclarator(id, t.cloneNode(tmpId)),
+          ]),
+        ]);
+      },
+      "BlockStatement|StaticBlock"(
+        path: NodePath<t.BlockStatement | t.StaticBlock>,
+        state,
+      ) {
+        let ctx: t.Identifier | null = null;
+        let needsAwait = false;
+        const scope = path.scope;
 
-      for (const node of path.node.body) {
-        if (!isUsingDeclaration(node)) continue;
-        ctx ??= scope.generateUidIdentifier("usingCtx");
-        const isAwaitUsing =
-          node.kind === "await using" ||
-          TOP_LEVEL_USING.get(node) === USING_KIND.AWAIT;
-        needsAwait ||= isAwaitUsing;
+        for (const node of path.node.body) {
+          if (!isUsingDeclaration(node)) continue;
+          ctx ??= scope.generateUidIdentifier("usingCtx");
+          const isAwaitUsing =
+            node.kind === "await using" ||
+            TOP_LEVEL_USING.get(node) === USING_KIND.AWAIT;
+          needsAwait ||= isAwaitUsing;
 
-        if (!TOP_LEVEL_USING.delete(node)) {
-          node.kind = "const";
+          if (!TOP_LEVEL_USING.delete(node)) {
+            node.kind = "const";
+          }
+          for (const decl of node.declarations) {
+            const currentInit = decl.init!;
+            decl.init = t.callExpression(
+              t.memberExpression(
+                t.cloneNode(ctx),
+                isAwaitUsing ? t.identifier("a") : t.identifier("u"),
+              ),
+              [
+                isAnonymousFunctionDefinition(currentInit) &&
+                t.isIdentifier(decl.id)
+                  ? emitSetFunctionNameCall(state, currentInit, decl.id.name)
+                  : currentInit,
+              ],
+            );
+          }
         }
-        for (const decl of node.declarations) {
-          const currentInit = decl.init;
-          decl.init = t.callExpression(
-            t.memberExpression(
-              t.cloneNode(ctx),
-              isAwaitUsing ? t.identifier("a") : t.identifier("u"),
-            ),
-            [
-              isAnonymousFunctionDefinition(currentInit) &&
-              t.isIdentifier(decl.id)
-                ? emitSetFunctionNameCall(state, currentInit, decl.id.name)
-                : currentInit,
-            ],
-          );
-        }
-      }
-      if (!ctx) return;
+        if (!ctx) return;
 
-      const disposeCall = t.callExpression(
-        t.memberExpression(t.cloneNode(ctx), t.identifier("d")),
-        [],
-      );
+        const disposeCall = t.callExpression(
+          t.memberExpression(t.cloneNode(ctx), t.identifier("d")),
+          [],
+        );
 
-      const replacement = template.statement.ast`
+        const replacement = template.statement.ast`
         try {
           var ${t.cloneNode(ctx)} = ${state.addHelper("usingCtx")}();
           ${path.node.body}
@@ -117,22 +116,22 @@ export default declare(api => {
         }
       ` as t.TryStatement;
 
-      t.inherits(replacement, path.node);
+        t.inherits(replacement, path.node);
 
-      const { parentPath } = path;
-      if (
-        parentPath.isFunction() ||
-        parentPath.isTryStatement() ||
-        parentPath.isCatchClause()
-      ) {
-        path.replaceWith(t.blockStatement([replacement]));
-      } else if (path.isStaticBlock()) {
-        path.node.body = [replacement];
-      } else {
-        path.replaceWith(replacement);
-      }
-    },
-  };
+        const { parentPath } = path;
+        if (
+          parentPath.isFunction() ||
+          parentPath.isTryStatement() ||
+          parentPath.isCatchClause()
+        ) {
+          path.replaceWith(t.blockStatement([replacement]));
+        } else if (path.isStaticBlock()) {
+          path.node.body = [replacement];
+        } else {
+          path.replaceWith(replacement);
+        }
+      },
+    });
 
   const transformUsingDeclarationsVisitorSkipFn: Visitor<PluginPass> =
     traverse.visitors.merge([
@@ -146,7 +145,6 @@ export default declare(api => {
 
   return {
     name: "transform-explicit-resource-management",
-    manipulateOptions: (_, p) => p.plugins.push("explicitResourceManagement"),
 
     visitor: traverse.visitors.merge([
       transformUsingDeclarationsVisitor,
@@ -166,7 +164,8 @@ export default declare(api => {
               continue;
             }
 
-            let node: t.Statement | t.Declaration = stmt.node;
+            let node: t.Statement | t.Declaration | undefined | null =
+              stmt.node;
             let shouldRemove = true;
 
             if (stmt.isExportDefaultDeclaration()) {
@@ -218,7 +217,7 @@ export default declare(api => {
             }
 
             if (t.isClassDeclaration(node)) {
-              const { id } = node;
+              const id = node.id!;
               node.id = t.cloneNode(id);
               innerBlockBody.push(
                 t.variableDeclaration("var", [

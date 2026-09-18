@@ -1,4 +1,4 @@
-import traverse from "@babel/traverse";
+import traverse, { type ExplodedVisitor, type Visitor } from "@babel/traverse";
 import type * as t from "@babel/types";
 import type { GeneratorResult } from "@babel/generator";
 
@@ -86,14 +86,15 @@ function* transformFile(file: File, pluginPasses: PluginPasses): Handler<void> {
   for (const pluginPairs of pluginPasses) {
     const passPairs: [Plugin, PluginPass][] = [];
     const passes = [];
-    const visitors = [];
+    const visitors: Visitor<PluginPass<object>>[] = [];
 
     for (const plugin of pluginPairs.concat([loadBlockHoistPlugin()])) {
       const pass = new PluginPass(file, plugin.key, plugin.options, async);
 
       passPairs.push([plugin, pass]);
       passes.push(pass);
-      visitors.push(plugin.visitor);
+      // FIXME: plugin.visitor may be undefined
+      visitors.push(plugin.visitor!);
     }
 
     for (const [plugin, pass] of passPairs) {
@@ -109,11 +110,12 @@ function* transformFile(file: File, pluginPasses: PluginPasses): Handler<void> {
     }
 
     // merge all plugin visitors into a single visitor
-    const visitor = traverse.visitors.merge(
-      visitors,
-      passes,
-      file.opts.wrapPluginVisitorMethod,
-    );
+    const visitor: ExplodedVisitor<PluginPass<object>> =
+      traverse.visitors.merge(
+        visitors,
+        passes,
+        file.opts.wrapPluginVisitorMethod,
+      );
 
     traverse(file.ast.program, visitor, file.scope, null, file.path, true);
 

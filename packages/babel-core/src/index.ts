@@ -1,12 +1,13 @@
 export const version = process.env.BABEL_9_BREAKING
-  ? PACKAGE_JSON.version + "999999999"
+  ? PACKAGE_JSON.version.replace(/0*$/, "999999999")
   : PACKAGE_JSON.version;
 
 export { default as File } from "./transformation/file/file.ts";
 export type { default as PluginPass } from "./transformation/plugin-pass.ts";
 export { default as buildExternalHelpers } from "./tools/build-external-helpers.ts";
 
-import * as resolvers from "./config/files/index.ts";
+// eslint-disable-next-line import/no-unresolved, import/extensions
+import * as resolvers from "#config/files";
 // For backwards-compatibility, we expose the resolvers
 // with the old API.
 export const resolvePlugin = (name: string, dirname: string) =>
@@ -30,6 +31,7 @@ export { default as template } from "@babel/template";
 // TODO: Figure out how to fix this upstream.
 export type { NodePath, Scope } from "@babel/traverse";
 export type Visitor<S = unknown> = import("@babel/traverse").Visitor<S>;
+export type VisitorBase<S = unknown> = import("@babel/traverse").VisitorBase<S>;
 
 export {
   createConfigItem,
@@ -48,9 +50,12 @@ import { loadOptionsSync } from "./config/index.ts";
 import type {
   ConfigApplicableTest,
   PluginItem,
+  PresetItem,
+  PluginTarget,
+  PresetTarget,
 } from "./config/validation/options.ts";
 export { loadOptionsSync };
-export type { PluginItem };
+export type { PluginItem, PresetItem, PluginTarget, PresetTarget };
 
 export type PresetObject = {
   overrides?: PresetObject[];
@@ -80,7 +85,8 @@ export {
   transformFile,
   transformFileAsync,
   transformFileSync,
-} from "./transform-file.ts";
+  // eslint-disable-next-line import/no-unresolved
+} from "#transform-file";
 export {
   transformFromAst,
   transformFromAstAsync,

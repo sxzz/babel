@@ -1,6 +1,6 @@
 {
   "name": "@babel/parser",
-  "version": "7.28.5",
+  "version": "8.0.6",
   "description": "A JavaScript parser",
   "author": "The Babel Team (https://babel.dev/team)",
   "homepage": "https://babel.dev/docs/en/next/babel-parser",
@@ -30,7 +30,7 @@
     "index.cjs"
   ],
   "engines": {
-    "node": "^20.19.0 || >=22.12.0"
+    "node": "^22.18.0 || >=24.11.0"
   },
   "# dependencies": "This package doesn't actually have runtime dependencies. @babel/types is only needed for type definitions.",
   "dependencies": {
@@ -42,7 +42,8 @@
     "@babel/helper-fixtures": "workspace:^",
     "@babel/helper-string-parser": "workspace:^",
     "@babel/helper-validator-identifier": "workspace:^",
-    "charcodes": "^0.2.0"
+    "charcodes": "catalog:dev",
+    "typescript": "catalog:dev"
   },
   "bin": "./bin/babel-parser.js",
   "type": "module",

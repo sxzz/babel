@@ -2,7 +2,7 @@ import { declare } from "@babel/helper-plugin-utils";
 import { types as t } from "@babel/core";
 
 export default declare(api => {
-  api.assertVersion(REQUIRED_VERSION(7));
+  api.assertVersion(REQUIRED_VERSION("^7.0.0-0 || ^8.0.0"));
 
   return {
     name: "transform-typeof-symbol",
@@ -28,7 +28,7 @@ export default declare(api => {
         ) {
           // optimise `typeof foo === "string"` since we can determine that they'll never
           // need to handle symbols
-          const opposite = path.getOpposite();
+          const opposite = path.getOpposite()!;
           if (
             opposite.isStringLiteral() &&
             opposite.node.value !== "symbol" &&
@@ -45,6 +45,7 @@ export default declare(api => {
               "@babel/helpers - typeof"
             );
           }
+          return false;
         });
 
         if (isUnderHelper) return;

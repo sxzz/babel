@@ -19,11 +19,8 @@ import {
   type TokenType,
 } from "./types.ts";
 import type { TokContext } from "./context.ts";
-import {
-  Errors,
-  type ParseError,
-  type ParseErrorConstructor,
-} from "../parse-error.ts";
+import type { ParseError } from "../parse-error.ts";
+import { Errors, type ParseErrorConstructor } from "../parse-error.ts";
 import {
   lineBreakG,
   isNewLine,
@@ -45,7 +42,7 @@ import {
   type StringContentsErrorHandlers,
 } from "@babel/helper-string-parser";
 
-import type { Plugin } from "../typings.ts";
+import type { Plugin } from "../typings.d.ts";
 
 function buildPosition(pos: number, lineStart: number, curLine: number) {
   return new Position(curLine, pos - lineStart, pos);
@@ -83,6 +80,8 @@ export class Token {
   declare loc: SourceLocation;
 }
 
+let locDataCache: Uint32Array | undefined;
+
 // ## Tokenizer
 
 export default abstract class Tokenizer extends CommentsParser {
@@ -99,6 +98,44 @@ export default abstract class Tokenizer extends CommentsParser {
     this.length = input.length;
     this.comments = [];
     this.isLookahead = false;
+
+    if (process.env.IS_PUBLISH) {
+      if (!locDataCache || locDataCache.length < (this.length + 1) * 2) {
+        locDataCache = new Uint32Array((this.length + 1) * 2);
+      }
+    } else {
+      locDataCache = new Uint32Array((this.length + 1) * 2);
+      locDataCache.fill(4294967295);
+    }
+
+    this.locData = locDataCache;
+  }
+
+  setLoc(loc: Position) {
+    const dataIndex = this.offsetToSourcePos(loc.index);
+    this.locData[dataIndex * 2] = loc.line;
+    this.locData[dataIndex * 2 + 1] = loc.column;
+  }
+
+  getLoc(locIndex: number): Position {
+    const dataIndex = this.offsetToSourcePos(locIndex);
+    if (!process.env.IS_PUBLISH) {
+      if (
+        this.locData[dataIndex * 2] === 4294967295 ||
+        this.locData[dataIndex * 2 + 1] === 4294967295
+      ) {
+        throw new Error(
+          "Attempted to get location data for an index that has not been set",
+        );
+      }
+    }
+
+    const loc = new Position(
+      this.locData[dataIndex * 2],
+      this.locData[dataIndex * 2 + 1],
+      locIndex,
+    );
+    return loc;
   }
 
   pushToken(token: Token | N.Comment) {
@@ -353,8 +390,8 @@ export default abstract class Tokenizer extends CommentsParser {
 
   skipSpace(): void {
     const spaceStart = this.state.pos;
-    const comments: N.Comment[] | null =
-      this.optionFlags & OptionFlags.AttachComment ? [] : null;
+    const attachComment = (this.optionFlags & OptionFlags.AttachComment) > 0;
+    let comments: N.Comment[] | undefined;
     loop: while (this.state.pos < this.length) {
       const ch = this.input.charCodeAt(this.state.pos);
       switch (ch) {
@@ -384,7 +421,9 @@ export default abstract class Tokenizer extends CommentsParser {
               const comment = this.skipBlockComment("*/");
               if (comment !== undefined) {
                 this.addComment(comment);
-                comments?.push(comment);
+                if (attachComment) {
+                  (comments ??= []).push(comment);
+                }
               }
               break;
             }
@@ -393,7 +432,9 @@ export default abstract class Tokenizer extends CommentsParser {
               const comment = this.skipLineComment(2);
               if (comment !== undefined) {
                 this.addComment(comment);
-                comments?.push(comment);
+                if (attachComment) {
+                  (comments ??= []).push(comment);
+                }
               }
               break;
             }
@@ -421,7 +462,9 @@ export default abstract class Tokenizer extends CommentsParser {
               const comment = this.skipLineComment(3);
               if (comment !== undefined) {
                 this.addComment(comment);
-                comments?.push(comment);
+                if (attachComment) {
+                  (comments ??= []).push(comment);
+                }
               }
             } else {
               break loop;
@@ -441,7 +484,9 @@ export default abstract class Tokenizer extends CommentsParser {
               const comment = this.skipLineComment(4);
               if (comment !== undefined) {
                 this.addComment(comment);
-                comments?.push(comment);
+                if (attachComment) {
+                  (comments ??= []).push(comment);
+                }
               }
             } else {
               break loop;
@@ -452,13 +497,12 @@ export default abstract class Tokenizer extends CommentsParser {
       }
     }
 
-    // @ts-expect-error comparing undefined and number
-    if (comments?.length > 0) {
+    if (comments?.length) {
       const end = this.state.pos;
       const commentWhitespace: CommentWhitespace = {
         start: this.sourceToOffsetPos(spaceStart),
         end: this.sourceToOffsetPos(end),
-        comments: comments!,
+        comments: comments,
         leadingNode: null,
         trailingNode: null,
         containingNode: null,
@@ -486,8 +530,6 @@ export default abstract class Tokenizer extends CommentsParser {
 
   replaceToken(type: TokenType): void {
     this.state.type = type;
-    // @ts-expect-error the prevType of updateContext is required
-    // only when the new type is tt.slash/tt.jsxTagEnd
     this.updateContext();
   }
 
@@ -1112,8 +1154,6 @@ export default abstract class Tokenizer extends CommentsParser {
     if (next === charCodes.lowercaseN) {
       ++this.state.pos;
       isBigInt = true;
-    } else if (next === charCodes.lowercaseM) {
-      throw this.raise(Errors.InvalidDecimal, startLoc);
     }
 
     if (isIdentifierStart(this.codePointAtPos(this.state.pos))) {
@@ -1185,6 +1225,9 @@ export default abstract class Tokenizer extends CommentsParser {
       next = this.input.charCodeAt(this.state.pos);
     }
 
+    // remove "_" for numeric literal separator. It should not include "n" for bigint literal
+    const str = this.input.slice(start, this.state.pos).replaceAll("_", "");
+
     if (next === charCodes.lowercaseN) {
       // disallow floats, legacy octal syntax and non octal decimals
       // new style octal ("0o") is handled in this.readRadixNumber
@@ -1198,9 +1241,6 @@ export default abstract class Tokenizer extends CommentsParser {
     if (isIdentifierStart(this.codePointAtPos(this.state.pos))) {
       throw this.raise(Errors.NumberIdentifier, this.state.curPosition());
     }
-
-    // remove "_" for numeric literal separator, and trailing `m` or `n`
-    const str = this.input.slice(start, this.state.pos).replace(/[_mn]/g, "");
 
     if (isBigInt) {
       this.finishToken(tt.bigint, str);
@@ -1390,11 +1430,24 @@ export default abstract class Tokenizer extends CommentsParser {
    */
   raise<ErrorDetails = object>(
     toParseError: ParseErrorConstructor<ErrorDetails>,
-    at: Position | Undone<Node>,
+    at: Position | Undone<Node> | number,
     details: ErrorDetails = {} as ErrorDetails,
-  ): ParseError<ErrorDetails> {
-    const loc = at instanceof Position ? at : at.loc.start;
-    const error = toParseError(loc, details);
+  ): ParseError {
+    const loc =
+      at instanceof Position
+        ? at
+        : typeof at === "number"
+          ? this.getLoc(at)
+          : this.optionFlags & OptionFlags.Locations
+            ? at.loc!.start
+            : this.getLoc(at.start!);
+    const pos =
+      at instanceof Position
+        ? loc.index
+        : typeof at === "number"
+          ? at
+          : at.start!;
+    const error = toParseError(loc, pos, details);
 
     if (!(this.optionFlags & OptionFlags.ErrorRecovery)) throw error;
     if (!this.isLookahead) this.state.errors.push(error);
@@ -1412,28 +1465,33 @@ export default abstract class Tokenizer extends CommentsParser {
     toParseError: ParseErrorConstructor<ErrorDetails>,
     at: Position | Undone<Node>,
     details: ErrorDetails = {} as ErrorDetails,
-  ): ParseError<ErrorDetails> | never {
-    const loc = at instanceof Position ? at : at.loc.start;
-    const pos = loc.index;
+  ): ParseError {
+    const loc =
+      at instanceof Position
+        ? at
+        : this.optionFlags & OptionFlags.Locations
+          ? at.loc!.start
+          : this.getLoc(at.start!);
+    const pos = at instanceof Position ? loc.index : at.start!;
     const errors = this.state.errors;
 
     for (let i = errors.length - 1; i >= 0; i--) {
       const error = errors[i];
-      if (error.loc.index === pos) {
-        return (errors[i] = toParseError(loc, details));
+      if (error.pos === pos) {
+        return (errors[i] = toParseError(loc, pos, details));
       }
-      if (error.loc.index < pos) break;
+      if (error.pos < pos) break;
     }
 
-    return this.raise(toParseError, at, details);
+    return this.raise(toParseError, loc, details);
   }
 
   // updateContext is used by the jsx plugin
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  updateContext(prevType: TokenType): void {}
+  updateContext(prevType?: TokenType): void {}
 
   // Raise an unexpected token error. Can take the expected token type.
-  unexpected(loc?: Position | null, type?: TokenType): any {
+  unexpected(loc?: Position | number | null, type?: TokenType): any {
     throw this.raise(
       Errors.UnexpectedToken,
       loc != null ? loc : this.state.startLoc,
@@ -1443,7 +1501,7 @@ export default abstract class Tokenizer extends CommentsParser {
     );
   }
 
-  expectPlugin(pluginName: Plugin, loc?: Position): true {
+  expectPlugin(pluginName: Plugin, loc?: Position | number | null): true {
     if (this.hasPlugin(pluginName)) {
       return true;
     }
@@ -1473,13 +1531,9 @@ export default abstract class Tokenizer extends CommentsParser {
 
   errorHandlers_readInt: IntErrorHandlers = {
     invalidDigit: (pos, lineStart, curLine, radix) => {
-      if (!(this.optionFlags & OptionFlags.ErrorRecovery)) return false;
-
       this.raise(Errors.InvalidDigit, buildPosition(pos, lineStart, curLine), {
         radix,
       });
-      // Continue parsing the number as if there was no invalid digit.
-      return true;
     },
     numericSeparatorInEscapeSequence: this.errorBuilder(
       Errors.NumericSeparatorInEscapeSequence,

@@ -3,11 +3,10 @@ import * as charCodes from "charcodes";
 import { tokenLabelName, tt } from "../tokenizer/types.ts";
 import type Parser from "../parser/index.ts";
 import type * as N from "../types.ts";
-import { ParseErrorEnum } from "../parse-error.ts";
+import { ParseErrorEnum, type ParseErrorTemplates } from "../parse-error.ts";
 import type { Undone } from "../parser/node.ts";
 import type { ExpressionErrors } from "../parser/util.ts";
 import type { BindingFlag } from "../util/scopeflags.ts";
-import type { Position } from "../util/location.ts";
 
 type PossiblePlaceholders = {
   Identifier: N.Identifier;
@@ -17,7 +16,7 @@ type PossiblePlaceholders = {
   Declaration: N.Declaration;
   BlockStatement: N.BlockStatement;
   ClassBody: N.ClassBody;
-  Pattern: N.Pattern;
+  Pattern: Exclude<N.Pattern, N.AssignmentPattern>;
 };
 export type PlaceholderTypes = keyof PossiblePlaceholders;
 
@@ -30,10 +29,14 @@ type NodeOf<T extends keyof PossiblePlaceholders> = PossiblePlaceholders[T];
 type MaybePlaceholder<T extends PlaceholderTypes> = NodeOf<T>; // | Placeholder<T>
 
 /* eslint sort-keys: "error" */
-const PlaceholderErrors = ParseErrorEnum`placeholders`({
+export const PlaceholderErrorTemplates = {
   ClassNameIsRequired: "A class name is required.",
   UnexpectedSpace: "Unexpected space in placeholder.",
-});
+} satisfies ParseErrorTemplates;
+
+const PlaceholderErrors = ParseErrorEnum`placeholders`(
+  PlaceholderErrorTemplates,
+);
 
 export default (superClass: typeof Parser) =>
   class PlaceholdersParserMixin extends superClass implements Parser {
@@ -69,6 +72,8 @@ export default (superClass: typeof Parser) =>
       }
 
       placeholder.expectedNode = expectedNode;
+      // avoid TS2590: Expression produces a union type that is too complex to represent.
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
       return placeholder as unknown as MaybePlaceholder<T>;
     }
 
@@ -93,7 +98,7 @@ export default (superClass: typeof Parser) =>
 
     parseExprAtom(
       refExpressionErrors?: ExpressionErrors | null,
-    ): MaybePlaceholder<"Expression"> {
+    ): MaybePlaceholder<"Expression"> | N.Super | N.Import {
       return (
         this.parsePlaceholder("Expression") ||
         super.parseExprAtom(refExpressionErrors)
@@ -112,7 +117,7 @@ export default (superClass: typeof Parser) =>
 
     checkReservedWord(
       word: string,
-      startLoc: Position,
+      startLoc: number,
       checkKeywords: boolean,
       isBinding: boolean,
     ) {
@@ -149,7 +154,7 @@ export default (superClass: typeof Parser) =>
      * parser/lval.ts                                               *
      * ============================================================ */
 
-    parseBindingAtom(): MaybePlaceholder<"Pattern"> {
+    parseBindingAtom(): MaybePlaceholder<"Pattern" | "Identifier"> {
       return this.parsePlaceholder("Pattern") || super.parseBindingAtom();
     }
 
@@ -318,6 +323,7 @@ export default (superClass: typeof Parser) =>
         // export %%DECL%%;
         node2.specifiers = [];
         node2.source = null;
+        // @ts-expect-error Consider refine placeholder types here to ExportNamedDeclaration["declaration"].
         node2.declaration = this.finishPlaceholder(placeholder, "Declaration");
         return this.finishNode(node2, "ExportNamedDeclaration");
       }
@@ -366,21 +372,22 @@ export default (superClass: typeof Parser) =>
       );
     }
 
-    checkExport(node: N.ExportNamedDeclaration): void {
-      const { specifiers } = node;
-      if (specifiers?.length) {
-        node.specifiers = specifiers.filter(
-          // @ts-expect-error placeholder typings
-          node => node.exported.type === "Placeholder",
-        );
-      }
-      super.checkExport(node);
-      node.specifiers = specifiers;
+    // TODO: Enable this
+    checkNamedExport(): void {
+      // const { specifiers } = node;
+      // if (specifiers?.length) {
+      //   node.specifiers = specifiers.filter(
+      //     // @ts-expect-error placeholder typings
+      //     node => node.exported.type === "Placeholder",
+      //   );
+      // }
+      // super.checkNamedExport(node);
+      // node.specifiers = specifiers;
     }
 
     parseImport(
       node: Undone<N.ImportDeclaration>,
-    ): N.ImportDeclaration | N.TsImportEqualsDeclaration {
+    ): N.ImportDeclaration | N.TSImportEqualsDeclaration {
       const placeholder = this.parsePlaceholder("Identifier");
       if (!placeholder) return super.parseImport(node);
 

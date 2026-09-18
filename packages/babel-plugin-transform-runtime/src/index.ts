@@ -2,9 +2,8 @@ import { declare } from "@babel/helper-plugin-utils";
 import { addDefault, isModule } from "@babel/helper-module-imports";
 import { types as t } from "@babel/core";
 
-import getRuntimePath, { resolveFSPath } from "./get-runtime-path/index.ts";
-
-// TODO(Babel 8): Remove this
+// eslint-disable-next-line import/no-unresolved
+import getRuntimePath, { resolveFSPath } from "#get-runtime-path";
 
 export interface Options {
   absoluteRuntime?: boolean;
@@ -15,7 +14,7 @@ export interface Options {
 }
 
 export default declare((api, options: Options, dirname) => {
-  api.assertVersion(REQUIRED_VERSION(7));
+  api.assertVersion(REQUIRED_VERSION("^7.0.0-0 || ^8.0.0"));
 
   const {
     version: runtimeVersion = "8.0.0-beta.0",
@@ -138,7 +137,7 @@ export default declare((api, options: Options, dirname) => {
       function addDefaultImport(
         source: string,
         nameHint: string,
-        blockHoist: number,
+        blockHoist: number | undefined,
         isHelper = false,
       ) {
         // If something on the page adds a helper when the file is an ES6

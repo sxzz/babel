@@ -60,7 +60,7 @@ const runConfig = makeWeakCache(function* runConfig(
   yield* [];
 
   return {
-    options: endHiddenCallStack(options as any as (api: ConfigAPI) => unknown)(
+    options: endHiddenCallStack(options as any as (api: ConfigAPI) => any)(
       makeConfigAPI(cache),
     ),
     cacheNeedsConfiguration: !cache.configured(),
@@ -95,10 +95,9 @@ function* readConfigCode(
     );
   }
 
-  // @ts-expect-error todo(flow->ts)
-  if (typeof options.then === "function") {
-    // @ts-expect-error We use ?. in case options is a thenable but not a promise
-    options.catch?.(() => {});
+  if (typeof (options as any).then === "function") {
+    // We use ?. in case options is a thenable but not a promise
+    (options as any).catch?.(() => {});
     throw new ConfigError(
       `You appear to be using an async configuration, ` +
         `which your current version of Babel does not support. ` +
@@ -355,7 +354,7 @@ export function* resolveShowConfigPath(
   const targetPath = process.env.BABEL_SHOW_CONFIG_FOR;
   if (targetPath != null) {
     const absolutePath = path.resolve(dirname, targetPath);
-    const stats = yield* fs.stat(absolutePath);
+    const stats = (yield* fs.stat(absolutePath))!;
     if (!stats.isFile()) {
       throw new Error(
         `${absolutePath}: BABEL_SHOW_CONFIG_FOR must refer to a regular file, directories are not supported.`,

@@ -1,7 +1,6 @@
 import { parse } from "@babel/parser";
 
-import _traverse from "../lib/index.js";
-const traverse = _traverse.default || _traverse;
+import traverse from "../lib/index.js";
 
 function getPath(code) {
   const ast = parse(code);
@@ -450,6 +449,23 @@ describe("evaluation", function () {
     `);
     const evalResult = path.get("body.3.expression").evaluate();
     expect(evalResult.confident).toBe(false);
+  });
+
+  it("should not evaluate Math.method when Math is shadowed by local variable", function () {
+    const path = getPath(`
+      function test(Math) {
+        Math.min(1, 2);
+      }
+    `);
+    const evalResult = path.get("body.0.body.body.0.expression").evaluate();
+    expect(evalResult.confident).toBe(false);
+  });
+
+  it("should evaluate standard global objects when not shadowed", function () {
+    const path = getPath("Math.min(1, 2);");
+    const evalResult = path.get("body.0.expression").evaluate();
+    expect(evalResult.confident).toBe(true);
+    expect(evalResult.value).toBe(1);
   });
 
   addDeoptTest("({a:{b}})", "ObjectExpression", "Identifier");

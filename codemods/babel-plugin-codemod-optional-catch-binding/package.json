@@ -1,6 +1,6 @@
 {
   "name": "@babel/plugin-codemod-optional-catch-binding",
-  "version": "7.10.4",
+  "version": "8.0.0",
   "description": "Remove unused catch bindings",
   "repository": {
     "type": "git",
@@ -17,14 +17,14 @@
     "@babel/plugin"
   ],
   "peerDependencies": {
-    "@babel/core": "^7.0.0-0"
+    "@babel/core": "^8.0.0"
   },
   "devDependencies": {
     "@babel/core": "workspace:^",
     "@babel/helper-plugin-test-runner": "workspace:^"
   },
   "engines": {
-    "node": "^20.19.0 || >=22.12.0"
+    "node": "^22.18.0 || >=24.11.0"
   },
   "author": "The Babel Team (https://babel.dev/team)",
   "exports": {

@@ -9,7 +9,7 @@ import type {
   ParserPluginWithOptions,
   PluginConfig,
   PluginOptions,
-} from "../typings.ts";
+} from "../typings.d.ts";
 import type * as N from "../types.ts";
 
 export default class BaseParser {
@@ -38,6 +38,8 @@ export default class BaseParser {
   declare length: number;
   // Comment store for Program.comments
   declare comments: N.Comment[];
+
+  declare locData: Uint32Array;
 
   sourceToOffsetPos(sourcePos: number) {
     return sourcePos + this.startIndex;

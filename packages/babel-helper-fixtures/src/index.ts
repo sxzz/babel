@@ -1,14 +1,15 @@
-import semver from "semver";
+import { clean, isLess } from "verkit";
 import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
+import { isModuleNamespaceObject } from "node:util/types";
 import type { InputOptions } from "@babel/core";
 import type { EncodedSourceMap } from "@jridgewell/gen-mapping";
 
 const require = createRequire(import.meta.url);
 
-const nodeVersion = semver.clean(process.version.slice(1));
+const nodeVersion = clean(process.version.slice(1))!;
 
 function humanize(val: string, noext?: boolean) {
   if (noext) val = path.basename(val, path.extname(val));
@@ -16,12 +17,12 @@ function humanize(val: string, noext?: boolean) {
 }
 
 interface TestIO {
-  loc: string;
-  code: string;
+  loc: string | undefined;
+  code: string | undefined;
 }
 
 export interface TestFile extends TestIO {
-  filename: string;
+  filename: string | undefined;
 }
 
 export interface Test {
@@ -29,7 +30,7 @@ export interface Test {
   title: string;
   disabled: boolean | string;
   options: TaskOptions;
-  optionsDir: string;
+  optionsDir: string | undefined;
   doNotSetSourceType: boolean;
   externalHelpers: boolean;
   ignoreOutput: boolean;
@@ -39,7 +40,7 @@ export interface Test {
   actual: TestFile;
   expect: TestFile;
   inputSourceMap?: EncodedSourceMap;
-  sourceMap: string;
+  sourceMap: object | undefined;
   sourceMapFile: TestFile;
   sourceMapVisual: TestFile;
   validateSourceMapVisual: boolean;
@@ -75,6 +76,15 @@ function tryResolve(module: string) {
     return null;
   }
 }
+
+function loadOptions(loc: string): TaskOptions {
+  const options = require(loc);
+  if (isModuleNamespaceObject(options) && options.default) {
+    return options.default;
+  }
+  return options;
+}
+
 function assertDirectory(loc: string) {
   if (!fs.statSync(loc).isDirectory()) {
     throw new Error(`Expected ${loc} to be a directory.`);
@@ -159,7 +169,7 @@ function pushTask(
           break;
         case "options":
           taskOptsLoc = loc;
-          Object.assign(taskOpts, require(taskOptsLoc));
+          Object.assign(taskOpts, loadOptions(taskOptsLoc));
           break;
         case "source-map":
           sourceMapLoc = loc;
@@ -216,12 +226,13 @@ function pushTask(
   }
 
   const sourceMapFile = buildTestFile(sourceMapLoc, true);
-  // TODO: code should not be a object
-  sourceMapFile.code &&= JSON.parse(sourceMapFile.code);
+  const sourceMap = sourceMapFile.code
+    ? JSON.parse(sourceMapFile.code)
+    : undefined;
 
   const test: Test = {
     taskDir,
-    optionsDir: taskOptsLoc ? path.dirname(taskOptsLoc) : null,
+    optionsDir: taskOptsLoc ? path.dirname(taskOptsLoc) : undefined,
     title: humanize(taskName, true),
     disabled: taskName.startsWith(".")
       ? true
@@ -229,16 +240,16 @@ function pushTask(
           taskOpts.SKIP_babel7plugins_babel8core) ||
         false,
     options: taskOpts,
-    doNotSetSourceType: taskOpts.DO_NOT_SET_SOURCE_TYPE,
+    doNotSetSourceType: taskOpts.DO_NOT_SET_SOURCE_TYPE ?? false,
     externalHelpers: taskOpts.externalHelpers ?? true,
-    validateLogs: taskOpts.validateLogs,
-    ignoreOutput: taskOpts.ignoreOutput,
+    validateLogs: taskOpts.validateLogs ?? false,
+    ignoreOutput: taskOpts.ignoreOutput ?? false,
     stdout: buildTestFile(stdoutLoc),
     stderr: buildTestFile(stderrLoc),
     exec: buildTestFile(execLoc, execLocAlias),
     actual: buildTestFile(actualLoc, true),
     expect: buildTestFile(expectLoc, true),
-    sourceMap: sourceMapFile.code,
+    sourceMap,
     sourceMapFile,
     sourceMapVisual: buildTestFile(sourceMapVisualLoc),
     validateSourceMapVisual:
@@ -249,7 +260,8 @@ function pushTask(
   if (
     test.exec.code &&
     test.actual.code &&
-    path.extname(execLoc) !== path.extname(actualLoc)
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+    path.extname(execLoc) !== path.extname(actualLoc!)
   ) {
     throw new Error(
       `Input file extension should match exec file extension: ${execLoc}, ${actualLoc}`,
@@ -263,7 +275,7 @@ function pushTask(
 
   // If there's node requirement, check it before pushing task
   if (taskOpts.minNodeVersion) {
-    const minimumVersion = semver.clean(taskOpts.minNodeVersion);
+    const minimumVersion = clean(taskOpts.minNodeVersion);
 
     if (minimumVersion == null) {
       throw new Error(
@@ -271,9 +283,9 @@ function pushTask(
       );
     }
 
-    if (semver.lt(nodeVersion, minimumVersion)) {
+    if (isLess(nodeVersion, minimumVersion)) {
       if (test.actual.code) {
-        test.exec.code = null;
+        test.exec.code = undefined;
       } else {
         return;
       }
@@ -284,7 +296,7 @@ function pushTask(
   }
 
   if (taskOpts.minNodeVersionTransform) {
-    const minimumVersion = semver.clean(taskOpts.minNodeVersionTransform);
+    const minimumVersion = clean(taskOpts.minNodeVersionTransform);
 
     if (minimumVersion == null) {
       throw new Error(
@@ -292,7 +304,7 @@ function pushTask(
       );
     }
 
-    if (semver.lt(nodeVersion, minimumVersion)) {
+    if (isLess(nodeVersion, minimumVersion)) {
       return;
     }
 
@@ -454,12 +466,13 @@ export function resolveOptionPluginOrPreset(
   return options;
 }
 
-export default function get(entryLoc: string) {
+export default function get(entryLoc: string | URL) {
+  if (entryLoc instanceof URL) entryLoc = fileURLToPath(entryLoc);
   const suites: Suite[] = [];
 
   let rootOpts: TaskOptions = {};
   const rootOptsLoc = tryResolve(entryLoc + "/options");
-  if (rootOptsLoc) rootOpts = require(rootOptsLoc);
+  if (rootOptsLoc) rootOpts = loadOptions(rootOptsLoc);
 
   for (const suiteName of fs.readdirSync(entryLoc)) {
     if (shouldIgnore(suiteName)) continue;
@@ -477,7 +490,7 @@ export default function get(entryLoc: string) {
     const suiteOptsLoc = tryResolve(suite.filename + "/options");
     if (suiteOptsLoc) {
       suite.options = resolveOptionPluginOrPreset(
-        require(suiteOptsLoc),
+        loadOptions(suiteOptsLoc),
         suite.filename,
       );
     }
@@ -490,7 +503,8 @@ export default function get(entryLoc: string) {
   return suites;
 }
 
-export function multiple(entryLoc: string, ignore?: string[]) {
+export function multiple(entryLoc: string | URL, ignore?: string[]) {
+  if (entryLoc instanceof URL) entryLoc = fileURLToPath(entryLoc);
   const categories: Record<string, Suite[]> = {};
 
   for (const name of fs.readdirSync(entryLoc)) {

@@ -5,8 +5,6 @@ import repl from "node:repl";
 import * as babel from "@babel/core";
 import vm from "node:vm";
 import "core-js/stable/index.js";
-import "regenerator-runtime/runtime.js";
-// @ts-expect-error @babel/register is a CommonJS module
 import register from "@babel/register";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
@@ -22,6 +20,9 @@ const opts = program.opts();
 const babelOptions = {
   caller: {
     name: "@babel/node",
+    supportsStaticESM: false,
+    supportsDynamicImport: false,
+    supportsExportNamespaceFrom: false,
   },
   extensions: opts.extensions,
   ignore: opts.ignore,
@@ -51,9 +52,9 @@ let hasTopLevelAwait = false;
 const replPlugin = ({ types: t }: PluginAPI): PluginObject => ({
   visitor: {
     Program(path) {
-      hasTopLevelAwait = path.node.extra.topLevelAwait as boolean;
+      hasTopLevelAwait = path.node.extra?.topLevelAwait as boolean;
 
-      let hasExpressionStatement: boolean;
+      let hasExpressionStatement: boolean | undefined;
       for (const bodyPath of path.get("body")) {
         if (bodyPath.isExpressionStatement()) {
           hasExpressionStatement = true;
@@ -106,7 +107,7 @@ const _eval = function (code: string, filename: string) {
       allowAwaitOutsideFunction: true,
     },
     plugins: (opts.plugins || []).concat([replPlugin]),
-  }).code;
+  })!.code!;
 
   if (hasTopLevelAwait) {
     code = `(async () => { ${code} })()`;
@@ -131,6 +132,7 @@ if (opts.eval || opts.print) {
 
   global.exports = module.exports;
   global.module = module;
+  // @ts-expect-error missing require.extensions
   global.require = module.require.bind(module);
 
   const result = _eval(code, global.__filename);
@@ -243,5 +245,6 @@ function replStart() {
   });
   const NODE_REPL_HISTORY = process.env.NODE_REPL_HISTORY;
 
+  // @ts-expect-error setupHistory may be undefined
   replServer.setupHistory(NODE_REPL_HISTORY, () => {});
 }

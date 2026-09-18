@@ -4,14 +4,11 @@ import path from "node:path";
 import generator from "@babel/generator";
 import { rangesIntersect } from "verkit";
 
-import _Plugin from "../lib/config/plugin.js";
-const Plugin = _Plugin.default || _Plugin;
-
 import presetEnv from "@babel/preset-env";
 import pluginSyntaxFlow from "@babel/plugin-syntax-flow";
 import pluginSyntaxJSX from "@babel/plugin-syntax-jsx";
 import pluginFlowStripTypes from "@babel/plugin-transform-flow-strip-types";
-import { commonJS, IS_BABEL_8, USE_ESM } from "$repo-utils";
+import { commonJS } from "$repo-utils";
 import { itBabel9 } from "$repo-utils";
 
 const { __dirname, require } = commonJS(import.meta.url);
@@ -77,7 +74,7 @@ describe("parser and generator options", function () {
       return opts.parser.parse(code);
     },
     print: function (ast) {
-      return (generator.default || generator)(ast);
+      return generator(ast);
     },
   };
 
@@ -441,7 +438,7 @@ describe("api", function () {
       },
 
       plugins: [
-        new Plugin({
+        () => ({
           name: "foobar",
           visitor: {
             "Program|Identifier": function () {
@@ -468,7 +465,7 @@ describe("api", function () {
           function () {
             return {
               plugins: [
-                new Plugin({
+                () => ({
                   visitor: {
                     Function: function (path) {
                       const alias = path.scope
@@ -690,7 +687,7 @@ describe("api", function () {
         column: 4,
       }),
     ).toEqual({
-      name: "Foo",
+      name: null,
       source: "stdout",
       line: 1,
       column: 6,
@@ -921,7 +918,7 @@ describe("api", function () {
           "(function (global) {
             var babelHelpers = global.babelHelpers = {};
             function _get() {
-              return babelHelpers.get = _get = \\"undefined\\" != typeof Reflect && Reflect.get ? Reflect.get.bind() : function (e, t, r) {
+              return babelHelpers.get = _get = "undefined" != typeof Reflect && Reflect.get ? Reflect.get.bind() : function (e, t, r) {
                 var p = babelHelpers.superPropBase(e, t);
                 if (p) {
                   var n = Object.getOwnPropertyDescriptor(p, t);
@@ -930,7 +927,7 @@ describe("api", function () {
               }, _get.apply(null, arguments);
             }
             babelHelpers.get = _get;
-          })(typeof global === \\"undefined\\" ? self : global);"
+          })(typeof global === "undefined" ? self : global);"
         `);
       });
 
@@ -938,9 +935,9 @@ describe("api", function () {
         const script = babel.buildExternalHelpers(["get"], "umd");
         expect(script).toMatchInlineSnapshot(`
           "(function (root, factory) {
-            if (typeof define === \\"function\\" && define.amd) {
-              define([\\"exports\\"], factory);
-            } else if (typeof exports === \\"object\\") {
+            if (typeof define === "function" && define.amd) {
+              define(["exports"], factory);
+            } else if (typeof exports === "object") {
               factory(exports);
             } else {
               factory(root.babelHelpers = {});
@@ -948,7 +945,7 @@ describe("api", function () {
           })(this, function (global) {
             var babelHelpers = global;
             function _get() {
-              return babelHelpers.get = _get = \\"undefined\\" != typeof Reflect && Reflect.get ? Reflect.get.bind() : function (e, t, r) {
+              return babelHelpers.get = _get = "undefined" != typeof Reflect && Reflect.get ? Reflect.get.bind() : function (e, t, r) {
                 var p = babelHelpers.superPropBase(e, t);
                 if (p) {
                   var n = Object.getOwnPropertyDescriptor(p, t);
@@ -966,7 +963,7 @@ describe("api", function () {
         expect(script).toMatchInlineSnapshot(`
           "var babelHelpers = {};
           function _get() {
-            return babelHelpers.get = _get = \\"undefined\\" != typeof Reflect && Reflect.get ? Reflect.get.bind() : function (e, t, r) {
+            return babelHelpers.get = _get = "undefined" != typeof Reflect && Reflect.get ? Reflect.get.bind() : function (e, t, r) {
               var p = babelHelpers.superPropBase(e, t);
               if (p) {
                 var n = Object.getOwnPropertyDescriptor(p, t);
@@ -984,7 +981,7 @@ describe("api", function () {
         expect(script).toMatchInlineSnapshot(`
           "export { _get as get };
           function _get() {
-            return _get = \\"undefined\\" != typeof Reflect && Reflect.get ? Reflect.get.bind() : function (e, t, r) {
+            return _get = "undefined" != typeof Reflect && Reflect.get ? Reflect.get.bind() : function (e, t, r) {
               var p = _superPropBase(e, t);
               if (p) {
                 var n = Object.getOwnPropertyDescriptor(p, t);
@@ -1074,8 +1071,7 @@ describe("api", function () {
   });
 
   it("exports the version", function () {
-    // TODO: This should be 8, not 7
-    expect(babel.version[0]).toBe("7");
+    expect(babel.version[0]).toBe("8");
   });
 
   itBabel9("the version ends with 999999999", () => {
@@ -1083,17 +1079,15 @@ describe("api", function () {
   });
 });
 
-if (IS_BABEL_8() && USE_ESM) {
-  describe("cjs-proxy", function () {
-    it("error should be caught", () => {
-      let err;
-      try {
-        const cjs = require("../lib/index.js");
-        cjs.parse("foo");
-      } catch (error) {
-        err = error;
-      }
-      expect(err).toBeInstanceOf(Error);
-    });
+describe("cjs-proxy", function () {
+  it("error should be caught", () => {
+    let err;
+    try {
+      const cjs = require("../lib/index.js");
+      cjs.parse("foo");
+    } catch (error) {
+      err = error;
+    }
+    expect(err).toBeInstanceOf(Error);
   });
-}
+});

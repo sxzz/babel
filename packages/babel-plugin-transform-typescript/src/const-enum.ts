@@ -24,7 +24,7 @@ export default function transpileConstEnum(
           spec =>
             t.isExportSpecifier(spec) &&
             spec.exportKind !== "type" &&
-            spec.local.name === name,
+            (spec.local as t.Identifier).name === name,
         ),
     );
   }
@@ -90,7 +90,7 @@ export default function transpileConstEnum(
       }
       if (!entriesMap.has(key)) return;
 
-      path.replaceWith(t.cloneNode(entriesMap.get(key)));
+      path.replaceWith(t.cloneNode(entriesMap.get(key)!));
     },
   });
 

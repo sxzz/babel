@@ -16,14 +16,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Use Node.js latest
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: "*"
+          node-version: latest
           cache: "yarn"
       - name: Build
         run: make prepublish
       - name: Publish
         run: yarn pkg-pr-new publish --only-templates --yarn './codemods/*' './eslint/*' './packages/*'
-

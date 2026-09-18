@@ -32,9 +32,6 @@ export function _printTemplate<T extends t.Node>(
     this.token(partRaw + "${", true);
     this.print(substitutions[i]);
     partRaw = "}";
-
-    // In Babel 7 we have individual tokens for ${ and }, so the automatic
-    // catchup logic does not work. Manually look for those tokens.
   }
 
   partRaw += quasis[quasis.length - 1].value.raw;
@@ -42,5 +39,5 @@ export function _printTemplate<T extends t.Node>(
 }
 
 export function TemplateLiteral(this: Printer, node: t.TemplateLiteral) {
-  this._printTemplate(node, node.expressions);
+  _printTemplate.call(this, node, node.expressions);
 }

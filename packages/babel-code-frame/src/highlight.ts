@@ -1,7 +1,5 @@
 import type { Token as JSToken, JSXToken } from "js-tokens";
 import jsTokens from "js-tokens";
-// We inline this package
-// eslint-disable-next-line import/no-extraneous-dependencies
 import * as charCodes from "charcodes";
 
 import {
@@ -9,7 +7,7 @@ import {
   isKeyword,
 } from "@babel/helper-validator-identifier";
 
-import { getDefs, type InternalTokenType } from "./defs.ts";
+import { defs, type InternalTokenType } from "./defs.ts";
 
 /**
  * Names that are always allowed as identifiers, but also appear as keywords
@@ -63,7 +61,7 @@ const getTokenType = function (
         return "capitalized";
       }
     } else {
-      const firstChar = String.fromCodePoint(tokenValue.codePointAt(0));
+      const firstChar = String.fromCodePoint(tokenValue.codePointAt(0)!);
       if (firstChar !== firstChar.toLowerCase()) {
         return "capitalized";
       }
@@ -143,8 +141,6 @@ function* tokenize(text: string): Generator<Token> {
 
 export function highlight(text: string) {
   if (text === "") return "";
-
-  const defs = getDefs(true);
 
   let highlighted = "";
 

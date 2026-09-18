@@ -48,7 +48,10 @@ const hasReferenceOrThisVisitor: Visitor<{ name?: string; ref: () => void }> = {
   FunctionParent(path, state) {
     if (path.isArrowFunctionExpression()) return;
     if (state.name && !path.scope.hasOwnBinding(state.name)) {
-      path.traverse(hasReferenceVisitor, state);
+      path.traverse(
+        hasReferenceVisitor,
+        state as { name: string; ref: () => void },
+      );
     }
     path.skip();
     if (path.isMethod()) {
@@ -117,7 +120,7 @@ export function getPotentiallyBuggyFieldsIndexes(path: NodePath<t.Class>) {
   const className = path.node.id?.name;
 
   const hasReferenceState = {
-    name: className,
+    name: className!,
     ref: () => (classReferenced = true),
   };
 
@@ -149,7 +152,7 @@ export function getPotentiallyBuggyFieldsIndexes(path: NodePath<t.Class>) {
         nextPotentiallyBuggy = true;
       } else if (isStaticFieldWithValue(node)) {
         if (!classReferenced) {
-          if (isReferenceOrThis(node.value, className)) {
+          if (isReferenceOrThis(node.value!, className)) {
             classReferenced = true;
           } else {
             (

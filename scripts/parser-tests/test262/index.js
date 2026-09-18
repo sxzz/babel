@@ -34,17 +34,11 @@ const ignoredTests = ["built-ins/RegExp/", "language/literals/regexp/"];
 
 // @ts-expect-error Map signature is not recognized by TS
 const featuresToPlugins = new Map([
-  ["import-assertions", "importAssertions"],
-  ["import-attributes", "importAttributes"],
   ["import-defer", "deferredImportEvaluation"],
   [
     "decorators",
-    [
-      ["decorators", { version: "2022-03", decoratorsBeforeExport: false }],
-      "decoratorAutoAccessors",
-    ],
+    [["decorators", { version: "2023-11" }], "decoratorAutoAccessors"],
   ],
-  ["explicit-resource-management", "explicitResourceManagement"],
   ["source-phase-imports", "sourcePhaseImports"],
   ["source-phase-imports-module-source", "sourcePhaseImports"],
 ]);
@@ -77,7 +71,10 @@ const shouldUpdate = process.argv.includes("--update-allowlist");
 
 const runner = new TestRunner({
   testDir: path.join(dirname, "../../../build/test262").replace(/\\/g, "/"),
-  allowlist: path.join(dirname, "allowlist.txt"),
+  fileLinkBase: path
+    .join(dirname, "../../../build/test262/test")
+    .replace(/\\/g, "/"),
+  allowlist: path.join(dirname, "allowlist.md"),
   logInterval: 500,
   shouldUpdate: shouldUpdate,
 

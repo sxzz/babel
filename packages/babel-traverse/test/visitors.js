@@ -1,7 +1,6 @@
 import { parse } from "@babel/parser";
 
-import _traverse, { visitors } from "../lib/index.js";
-const traverse = _traverse.default || _traverse;
+import traverse, { visitors } from "../lib/index.js";
 
 describe("visitors", () => {
   describe("merge", () => {
@@ -19,9 +18,9 @@ describe("visitors", () => {
       ]);
       traverse(ast, visitor);
       expect(visitor).toMatchInlineSnapshot(`
-        Object {
-          "ArrayExpression": Object {
-            "enter": Array [
+        {
+          "ArrayExpression": {
+            "enter": [
               [Function],
               [Function],
             ],
@@ -37,10 +36,10 @@ describe("visitors", () => {
       const visitor = visitors.merge([{ enter() {} }, { enter() {} }]);
       traverse(ast, visitor);
       expect(visitor).toMatchInlineSnapshot(`
-        Object {
+        {
           "_exploded": true,
           "_verified": true,
-          "enter": Array [
+          "enter": [
             [Function],
             [Function],
           ],
@@ -56,10 +55,10 @@ describe("visitors", () => {
       );
       traverse(ast, visitor);
       expect(visitor).toMatchInlineSnapshot(`
-        Object {
+        {
           "_exploded": true,
           "_verified": true,
-          "enter": Array [
+          "enter": [
             [Function],
             [Function],
           ],
@@ -76,15 +75,32 @@ describe("visitors", () => {
       );
       traverse(ast, visitor);
       expect(visitor).toMatchInlineSnapshot(`
-        Object {
+        {
           "_exploded": true,
           "_verified": true,
-          "enter": Array [
+          "enter": [
             [Function],
             [Function],
           ],
         }
       `);
+    });
+  });
+
+  describe("deprecated option handling", () => {
+    it("should throw when using deprecated blacklist without denylist", () => {
+      expect(() => {
+        visitors.explode({ blacklist: ["MemberExpression"], enter() {} });
+      }).toThrow(/blacklist.*renamed.*denylist/);
+    });
+
+    it("should not throw when both blacklist and denylist are provided", () => {
+      const visitor = visitors.explode({
+        blacklist: ["MemberExpression"],
+        denylist: ["MemberExpression"],
+        enter() {},
+      });
+      expect(visitor._exploded).toBe(true);
     });
   });
 });

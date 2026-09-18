@@ -3,7 +3,6 @@ const v = new OptionValidator("@babel/preset-typescript");
 
 export interface Options {
   ignoreExtensions?: boolean;
-  allowDeclareFields?: boolean;
   allowNamespaces?: boolean;
   disallowAmbiguousJSXLike?: boolean;
   jsxPragma?: string;
@@ -11,15 +10,9 @@ export interface Options {
   onlyRemoveTypeImports?: boolean;
   optimizeConstEnums?: boolean;
   rewriteImportExtensions?: boolean;
-
-  // TODO: Remove in Babel 8
-  allExtensions?: boolean;
-  isTSX?: boolean;
 }
 
 export default function normalizeOptions(options: Options = {}) {
-  let { allowNamespaces = true, jsxPragma, onlyRemoveTypeImports } = options;
-
   const TopLevelOptions: {
     [Key in keyof Omit<Options, "allowDeclareFields">]-?: Key;
   } = {
@@ -31,10 +24,6 @@ export default function normalizeOptions(options: Options = {}) {
     onlyRemoveTypeImports: "onlyRemoveTypeImports",
     optimizeConstEnums: "optimizeConstEnums",
     rewriteImportExtensions: "rewriteImportExtensions",
-
-    // TODO: Remove in Babel 8
-    allExtensions: "allExtensions",
-    isTSX: "isTSX",
   };
 
   v.invariant(
@@ -51,17 +40,17 @@ export default function normalizeOptions(options: Options = {}) {
   );
 
   v.validateTopLevelOptions(options, TopLevelOptions);
-  allowNamespaces = v.validateBooleanOption(
+  const allowNamespaces = v.validateBooleanOption(
     TopLevelOptions.allowNamespaces,
     options.allowNamespaces,
     true,
   );
-  jsxPragma = v.validateStringOption(
+  const jsxPragma = v.validateStringOption(
     TopLevelOptions.jsxPragma,
     options.jsxPragma,
     "React",
   );
-  onlyRemoveTypeImports = v.validateBooleanOption(
+  const onlyRemoveTypeImports = v.validateBooleanOption(
     TopLevelOptions.onlyRemoveTypeImports,
     options.onlyRemoveTypeImports,
     true,

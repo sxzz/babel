@@ -2,20 +2,14 @@
  * This file is auto-generated! Do not modify it directly.
  * To re-generate run 'yarn gulp generate-standalone'
  */
-import makeNoopPlugin from "../make-noop-plugin.ts";
 import externalHelpers from "@babel/plugin-external-helpers";
-import syntaxDecimal from "@babel/plugin-syntax-decimal";
 import syntaxDecorators from "@babel/plugin-syntax-decorators";
 import syntaxDestructuringPrivate from "@babel/plugin-syntax-destructuring-private";
 import syntaxDoExpressions from "@babel/plugin-syntax-do-expressions";
-import syntaxExplicitResourceManagement from "@babel/plugin-syntax-explicit-resource-management";
 import syntaxExportDefaultFrom from "@babel/plugin-syntax-export-default-from";
 import syntaxFlow from "@babel/plugin-syntax-flow";
 import syntaxFunctionBind from "@babel/plugin-syntax-function-bind";
 import syntaxFunctionSent from "@babel/plugin-syntax-function-sent";
-import syntaxImportAssertions from "@babel/plugin-syntax-import-assertions";
-import syntaxImportAttributes from "@babel/plugin-syntax-import-attributes";
-import syntaxImportReflection from "@babel/plugin-syntax-import-reflection";
 import syntaxJsx from "@babel/plugin-syntax-jsx";
 import syntaxModuleBlocks from "@babel/plugin-syntax-module-blocks";
 import syntaxOptionalChainingAssign from "@babel/plugin-syntax-optional-chaining-assign";
@@ -73,21 +67,15 @@ import transformModulesSystemjs from "@babel/plugin-transform-modules-systemjs";
 import transformModulesUmd from "@babel/plugin-transform-modules-umd";
 import transformNamedCapturingGroupsRegex from "@babel/plugin-transform-named-capturing-groups-regex";
 import transformNewTarget from "@babel/plugin-transform-new-target";
-import transformObjectAssign from "@babel/plugin-transform-object-assign";
 import transformObjectSuper from "@babel/plugin-transform-object-super";
-import transformObjectSetPrototypeOfToAssign from "@babel/plugin-transform-object-set-prototype-of-to-assign";
 import transformParameters from "@babel/plugin-transform-parameters";
 import transformPropertyLiterals from "@babel/plugin-transform-property-literals";
-import transformPropertyMutators from "@babel/plugin-transform-property-mutators";
 import transformProtoToAssign from "@babel/plugin-transform-proto-to-assign";
 import transformReactConstantElements from "@babel/plugin-transform-react-constant-elements";
 import transformReactDisplayName from "@babel/plugin-transform-react-display-name";
 import transformReactInlineElements from "@babel/plugin-transform-react-inline-elements";
 import transformReactJsx from "@babel/plugin-transform-react-jsx";
-import transformReactJsxCompat from "@babel/plugin-transform-react-jsx-compat";
 import transformReactJsxDevelopment from "@babel/plugin-transform-react-jsx-development";
-import transformReactJsxSelf from "@babel/plugin-transform-react-jsx-self";
-import transformReactJsxSource from "@babel/plugin-transform-react-jsx-source";
 import transformRegenerator from "@babel/plugin-transform-regenerator";
 import transformReservedWords from "@babel/plugin-transform-reserved-words";
 import transformRuntime from "@babel/plugin-transform-runtime";
@@ -102,27 +90,15 @@ import transformUnicodeEscapes from "@babel/plugin-transform-unicode-escapes";
 import transformUnicodeRegex from "@babel/plugin-transform-unicode-regex";
 import transformExplicitResourceManagement from "@babel/plugin-transform-explicit-resource-management";
 import proposalImportDefer from "@babel/plugin-proposal-import-defer";
-export const syntaxAsyncGenerators = makeNoopPlugin(),
-  syntaxClassProperties = makeNoopPlugin(),
-  syntaxClassStaticBlock = makeNoopPlugin(),
-  syntaxImportMeta = makeNoopPlugin(),
-  syntaxObjectRestSpread = makeNoopPlugin(),
-  syntaxOptionalCatchBinding = makeNoopPlugin(),
-  syntaxTopLevelAwait = makeNoopPlugin();
 export {
   externalHelpers,
-  syntaxDecimal,
   syntaxDecorators,
   syntaxDestructuringPrivate,
   syntaxDoExpressions,
-  syntaxExplicitResourceManagement,
   syntaxExportDefaultFrom,
   syntaxFlow,
   syntaxFunctionBind,
   syntaxFunctionSent,
-  syntaxImportAssertions,
-  syntaxImportAttributes,
-  syntaxImportReflection,
   syntaxJsx,
   syntaxModuleBlocks,
   syntaxOptionalChainingAssign,
@@ -180,21 +156,15 @@ export {
   transformModulesUmd,
   transformNamedCapturingGroupsRegex,
   transformNewTarget,
-  transformObjectAssign,
   transformObjectSuper,
-  transformObjectSetPrototypeOfToAssign,
   transformParameters,
   transformPropertyLiterals,
-  transformPropertyMutators,
   transformProtoToAssign,
   transformReactConstantElements,
   transformReactDisplayName,
   transformReactInlineElements,
   transformReactJsx,
-  transformReactJsxCompat,
   transformReactJsxDevelopment,
-  transformReactJsxSelf,
-  transformReactJsxSource,
   transformRegenerator,
   transformReservedWords,
   transformRuntime,
@@ -211,26 +181,14 @@ export {
   proposalImportDefer,
 };
 export const all: Record<string, any> = {
-  "syntax-async-generators": syntaxAsyncGenerators,
-  "syntax-class-properties": syntaxClassProperties,
-  "syntax-class-static-block": syntaxClassStaticBlock,
-  "syntax-import-meta": syntaxImportMeta,
-  "syntax-object-rest-spread": syntaxObjectRestSpread,
-  "syntax-optional-catch-binding": syntaxOptionalCatchBinding,
-  "syntax-top-level-await": syntaxTopLevelAwait,
   "external-helpers": externalHelpers,
-  "syntax-decimal": syntaxDecimal,
   "syntax-decorators": syntaxDecorators,
   "syntax-destructuring-private": syntaxDestructuringPrivate,
   "syntax-do-expressions": syntaxDoExpressions,
-  "syntax-explicit-resource-management": syntaxExplicitResourceManagement,
   "syntax-export-default-from": syntaxExportDefaultFrom,
   "syntax-flow": syntaxFlow,
   "syntax-function-bind": syntaxFunctionBind,
   "syntax-function-sent": syntaxFunctionSent,
-  "syntax-import-assertions": syntaxImportAssertions,
-  "syntax-import-attributes": syntaxImportAttributes,
-  "syntax-import-reflection": syntaxImportReflection,
   "syntax-jsx": syntaxJsx,
   "syntax-module-blocks": syntaxModuleBlocks,
   "syntax-optional-chaining-assign": syntaxOptionalChainingAssign,
@@ -289,22 +247,15 @@ export const all: Record<string, any> = {
   "transform-modules-umd": transformModulesUmd,
   "transform-named-capturing-groups-regex": transformNamedCapturingGroupsRegex,
   "transform-new-target": transformNewTarget,
-  "transform-object-assign": transformObjectAssign,
   "transform-object-super": transformObjectSuper,
-  "transform-object-set-prototype-of-to-assign":
-    transformObjectSetPrototypeOfToAssign,
   "transform-parameters": transformParameters,
   "transform-property-literals": transformPropertyLiterals,
-  "transform-property-mutators": transformPropertyMutators,
   "transform-proto-to-assign": transformProtoToAssign,
   "transform-react-constant-elements": transformReactConstantElements,
   "transform-react-display-name": transformReactDisplayName,
   "transform-react-inline-elements": transformReactInlineElements,
   "transform-react-jsx": transformReactJsx,
-  "transform-react-jsx-compat": transformReactJsxCompat,
   "transform-react-jsx-development": transformReactJsxDevelopment,
-  "transform-react-jsx-self": transformReactJsxSelf,
-  "transform-react-jsx-source": transformReactJsxSource,
   "transform-regenerator": transformRegenerator,
   "transform-reserved-words": transformReservedWords,
   "transform-runtime": transformRuntime,

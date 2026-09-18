@@ -15,9 +15,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Use Node.js latest
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: latest
           check-latest: true
@@ -36,9 +36,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Use Node.js latest
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: latest
           check-latest: true
@@ -68,9 +68,9 @@ jobs:
     #    YARN_NODE_LINKER: pnp # use pnp linker for better linking performance and stricter checks
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Use Node.js latest
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: latest
           check-latest: true
@@ -84,20 +84,20 @@ jobs:
           STRIP_BABEL_VERSION_FLAG: true
       - name: Build Makefile.js
         run: |
-          node ./scripts/pack-script.js
+          node ./scripts/pack-script.ts
       - name: Generate readmes
         run: |
           make generate-readme
       - name: Generate .npmignore
         run: |
-          node scripts/generators/npm-ignore.js
+          node scripts/generators/npm-ignore.ts
       - name: Cleanup fixtures
         run: |
-          node scripts/cleanup-fixtures.js
+          node scripts/cleanup-fixtures.ts
       - name: Ensure cwd does not contain uncommitted changes
         run: |
-          node ./scripts/assert-dir-git-clean.js "\`make build\` and \`node scripts/cleanup-fixtures.js\`"
-      - uses: actions/upload-artifact@v4
+          node ./scripts/assert-dir-git-clean.ts "\`make build\` and \`node scripts/cleanup-fixtures.ts\`"
+      - uses: actions/upload-artifact@v7
         with:
           name: babel-artifact
           path: |
@@ -106,9 +106,7 @@ jobs:
             packages/*/lib/**/*
             packages/babel-standalone/*.js
             packages/babel-runtime/**/*.js
-            packages/babel-runtime-corejs2/**/*.js
             packages/babel-runtime-corejs3/**/*.js
-            packages/babel-core/src/vendor/*
             !**/node_modules/**
           retention-days: 5
 
@@ -120,9 +118,9 @@ jobs:
     #    YARN_NODE_LINKER: pnp # use pnp linker for better linking performance and stricter checks
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Use Node.js latest
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: latest
           check-latest: true
@@ -137,7 +135,24 @@ jobs:
           STRIP_BABEL_VERSION_FLAG: true
       - name: Ensure cwd does not contain uncommitted changes
         run: |
-          node ./scripts/assert-dir-git-clean.js build
+          node ./scripts/assert-dir-git-clean.ts build
+
+  prepublish-windows:
+    name: Prepublish on Windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      - name: Use Node.js latest
+        uses: actions/setup-node@v6
+        with:
+          node-version: latest
+          check-latest: true
+          cache: "yarn"
+      - name: Install
+        run: yarn install
+      - name: Prepublish
+        run: make prepublish
 
   lint:
     name: Lint
@@ -145,23 +160,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Use Node.js latest
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: latest
           check-latest: true
           cache: "yarn"
       - name: Install
         run: yarn install
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: babel-artifact
       - name: Lint
         run: make -j lint-ci check-compat-data
       - name: Ensure cwd does not contain uncommitted changes
         run: |
-          node ./scripts/assert-dir-git-clean.js "lint-ci check-compat-data"
+          node ./scripts/assert-dir-git-clean.ts "lint-ci check-compat-data"
 
   test-coverage:
     name: Test on Node.js Latest (with coverage)
@@ -169,9 +184,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Use Node.js latest
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: latest
           check-latest: true
@@ -179,7 +194,7 @@ jobs:
       - name: Install
         run: |
           yarn install
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: babel-artifact
       - name: Run tests
@@ -202,12 +217,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [24, 22, 20]
+        node-version: [25, 24, 22]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Use Node.js latest # Run yarn on latest node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: latest
           check-latest: true
@@ -215,11 +230,11 @@ jobs:
       - name: Install
         run: |
           yarn install
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: babel-artifact
       - name: Use Node.js ${{ matrix.node-version }} # Checkout node version for test executor
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
       - name: Ensure that @babel/node's list of node flags is up to date
@@ -243,16 +258,16 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Use Node.js latest
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: latest
           check-latest: true
           cache: "yarn"
       - name: Install
         run: yarn install
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: babel-artifact
       - name: Test
@@ -269,9 +284,9 @@ jobs:
     #    YARN_NODE_LINKER: pnp # use pnp linker for better linking performance and stricter checks
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Use Node.js latest
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: latest
           check-latest: true
@@ -283,7 +298,7 @@ jobs:
           BABEL_ENV: test-legacy
           BABEL_9_BREAKING: true
           STRIP_BABEL_VERSION_FLAG: true
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: babel9-artifact
           path: |
@@ -292,9 +307,7 @@ jobs:
             packages/*/lib/**/*
             packages/babel-standalone/*.js
             packages/babel-runtime/**/*.js
-            packages/babel-runtime-corejs2/**/*.js
             packages/babel-runtime-corejs3/**/*.js
-            packages/babel-core/src/vendor/*
             !**/node_modules/**
           retention-days: 5
 
@@ -304,16 +317,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Use Node.js latest
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: latest
           check-latest: true
           cache: "yarn"
       - name: Install
         run: yarn install
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: babel9-artifact
       - name: Lint
@@ -328,9 +341,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Use Node.js latest
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: latest
           check-latest: true
@@ -338,7 +351,7 @@ jobs:
       - name: Install
         run: |
           yarn install
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: babel9-artifact
       - name: Run tests
@@ -364,16 +377,16 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Use Node.js latest
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: latest
           check-latest: true
           cache: "yarn"
       - name: Install
         run: yarn install
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: babel9-artifact
       - name: Test
@@ -388,16 +401,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Use Node.js latest
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: latest
           check-latest: true
           cache: "yarn"
       - name: Install
         run: yarn install
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: babel-artifact
       - name: Download tests
@@ -415,9 +428,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Use Node.js latest
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: latest
           check-latest: true
@@ -444,7 +457,7 @@ jobs:
           # The "Support self-references on old Node.js" step mutates the
           # package.json file, causing a yarn.lock update.
           YARN_ENABLE_IMMUTABLE_INSTALLS: false
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: babel-artifact
       - name: Generate absoluteRuntime tests
@@ -481,9 +494,9 @@ jobs:
           ]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Use Node.js latest
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: latest
           check-latest: true
@@ -510,38 +523,41 @@ jobs:
           # The "Support self-references on old Node.js" step mutates the
           # package.json file, causing a yarn.lock update.
           YARN_ENABLE_IMMUTABLE_INSTALLS: false
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: babel-artifact
       - name: Generate absoluteRuntime tests
         run: yarn test:runtime:generate-absolute-runtime
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
       - name: Test Node.js ${{ matrix.node-version }}
         run: node test/runtime-integration/node.cjs
 
-  eslint8-test:
-    name: Test @babel/eslint-* with ESLint 8.0.0
+  eslint-version-test:
+    name: Test @babel/eslint-* with ESLint
     needs: build
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        eslint-version: [9]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Use Node.js latest
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: latest
-          check-latest: true
           cache: "yarn"
       - name: Install
         run: yarn install
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: babel-artifact
-      - name: Downgrade ESLint to 8.0.0
-        run: yarn up eslint@8.0.0
+      - name: Downgrade ESLint to ${{ matrix.eslint-version }}
+        run: yarn up eslint@catalog:babel-eslint--${{ matrix.eslint-version }} eslint-plugin-import@catalog:babel-eslint--${{ matrix.eslint-version }}
       - name: Run babel/eslint tests
         run: node ./node_modules/.bin/jest eslint
 
@@ -551,14 +567,14 @@ jobs:
     if: github.repository == 'babel/babel'
     steps:
       - name: Checkout Babel
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Use Node.js latest
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: latest
           check-latest: true
       - name: Checkout test runner
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: babel/babel-test262-runner
           path: babel-test262-runner
@@ -573,7 +589,7 @@ jobs:
         env:
           TEST262_PATH: ../build/test262
       - name: Upload chunks artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test262-chunks
           path: ~/test262-chunks.json
@@ -588,19 +604,19 @@ jobs:
     needs: [build, test262-prepare]
     steps:
       - name: Checkout Babel
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Use Node.js latest
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: latest
           check-latest: true
       - name: Install
         run: yarn install
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: babel-artifact
       - name: Checkout test runner
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: babel/babel-test262-runner
           path: babel-test262-runner
@@ -613,7 +629,7 @@ jobs:
       - name: Download test262
         run: make bootstrap-test262
       - name: Download chunks file
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: test262-chunks
       - name: Run test262
@@ -630,7 +646,7 @@ jobs:
           CHUNKS_FILE: ../test262-chunks.json
           CHUNK: ${{ matrix.chunk }}
       - name: Create artifact with report results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test262-result-${{ matrix.chunk }}
           path: ~/test262-${{ matrix.chunk }}.tap
@@ -641,21 +657,21 @@ jobs:
     runs-on: ubuntu-latest
     needs: test262
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: { name: test262-result-0 }
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: { name: test262-result-1 }
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: { name: test262-result-2 }
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: { name: test262-result-3 }
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: { name: test262-result-4 }
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: { name: test262-result-5 }
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: { name: test262-result-6 }
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: { name: test262-result-7 }
       - name: Merge chunk results
         run: |
@@ -663,12 +679,12 @@ jobs:
               test262-4.tap test262-5.tap test262-6.tap test262-7.tap \
             | npx tap-merge > test262.tap
       - name: Create artifact with report results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test262-result
           path: test262.tap
       - name: Checkout test runner
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: babel/babel-test262-runner
           path: babel-test262-runner
@@ -687,3 +703,37 @@ jobs:
         # Specify bash to enable pipefail, so that "| tee" does not suppress the failure exit code.
         # https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsshell
         shell: bash
+
+  ensure-npm-packages-exist:
+    name: Ensure npm packages exist
+    needs: yarn-validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      - name: Use Node.js latest
+        uses: actions/setup-node@v6
+        with:
+          node-version: latest
+          check-latest: true
+          cache: "yarn"
+      - name: Install
+        run: yarn install
+      - name: Ensure npm packages exist
+        run: |
+          node ./scripts/ensure-packages-exist.ts --check-only
+  publint:
+    name: Publint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      - name: Use Node.js latest
+        uses: actions/setup-node@v6
+        with:
+          node-version: "*"
+          cache: "yarn"
+      - name: Build
+        run: make prepublish
+      - name: Publint
+        run: node ./scripts/publint.ts

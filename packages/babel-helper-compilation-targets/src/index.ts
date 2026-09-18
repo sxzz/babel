@@ -1,7 +1,7 @@
 import browserslist from "browserslist";
 import { findSuggestion } from "@babel/helper-validator-option";
 import browserModulesData from "@babel/compat-data/native-modules" with { type: "json" };
-import LruCache from "lru-cache";
+import flru from "flru";
 
 import {
   semverify,
@@ -129,11 +129,12 @@ getting parsed as 6.1, which can lead to unexpected behavior.
 function semverifyTarget(target: Target, value: string) {
   try {
     return semverify(value);
-  } catch (_) {
+  } catch (e) {
     throw new Error(
       v.formatMessage(
         `'${value}' is not a valid value for 'targets.${target}'.`,
       ),
+      { cause: e },
     );
   }
 }
@@ -173,11 +174,11 @@ function resolveTargets(queries: Browsers, env?: string): Targets {
   return getLowestVersions(resolved);
 }
 
-const targetsCache = new LruCache({ max: 64 });
+const targetsCache = flru<Targets>(64);
 
 function resolveTargetsCached(queries: Browsers, env?: string): Targets {
   const cacheKey = typeof queries === "string" ? queries : queries.join() + env;
-  let cached = targetsCache.get(cacheKey) as Targets | undefined;
+  let cached = targetsCache.get(cacheKey);
   if (!cached) {
     cached = resolveTargets(queries, env);
     targetsCache.set(cacheKey, cached);
@@ -233,24 +234,21 @@ export default function getTargets(
     }
 
     if (browsers == null) {
-      // In Babel 8, if no targets are passed, we use browserslist's defaults.
+      // If no targets are passed, we use browserslist's defaults.
       browsers = ["defaults"];
     }
   }
 
-  if (esmodules) {
-    esmodules = "intersect";
-  }
-
   // `esmodules` as a target indicates the specific set of browsers supporting ES Modules.
-  // These values OVERRIDE the `browsers` field.
-  if (esmodules && (esmodules !== "intersect" || !browsers?.length)) {
-    browsers = Object.keys(ESM_SUPPORT)
+  // These values offer defaults of the `browsers` field.
+  if (esmodules && !browsers?.length) {
+    browsers = (Object.keys(ESM_SUPPORT) as (keyof typeof ESM_SUPPORT)[])
       .map(
         (browser: keyof typeof ESM_SUPPORT) =>
           `${browser} >= ${ESM_SUPPORT[browser]}`,
       )
       .join(", ");
+    // skip `esmodules` processing below since `browsers` is already set
     esmodules = false;
   }
 
@@ -263,14 +261,14 @@ export default function getTargets(
       options.browserslistEnv,
     );
 
-    if (esmodules === "intersect") {
+    if (esmodules) {
       for (const browser of Object.keys(queryBrowsers) as Target[]) {
         if (browser !== "deno" && browser !== "ie") {
           const esmSupportVersion =
             ESM_SUPPORT[browser === "opera_mobile" ? "op_mob" : browser];
 
           if (esmSupportVersion) {
-            const version = queryBrowsers[browser];
+            const version = queryBrowsers[browser]!;
             queryBrowsers[browser] = getHighestUnreleased(
               version,
               semverify(esmSupportVersion),
@@ -292,7 +290,7 @@ export default function getTargets(
   const result: Targets = {};
   const decimalWarnings = [];
   for (const target of Object.keys(targets).sort() as Target[]) {
-    const value = targets[target];
+    const value = targets[target]!;
 
     // Warn when specifying minor/patch as a decimal
     if (typeof value === "number" && value % 1 !== 0) {

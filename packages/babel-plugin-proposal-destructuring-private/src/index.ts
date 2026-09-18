@@ -11,10 +11,11 @@ import { unshiftForXStatementBody } from "@babel/plugin-transform-destructuring"
 import type { PluginPass, NodePath, Visitor, types as t } from "@babel/core";
 
 export default declare(function ({ assertVersion, assumption, types: t }) {
-  assertVersion(REQUIRED_VERSION("^7.17.0"));
+  assertVersion(REQUIRED_VERSION("^7.17.0 || ^8.0.0"));
   const {
     assignmentExpression,
     assignmentPattern,
+    buildUndefinedNode,
     cloneNode,
     expressionStatement,
     isExpressionStatement,
@@ -34,7 +35,7 @@ export default declare(function ({ assertVersion, assumption, types: t }) {
       // transforms to:
       // (b, p1) => { var { #x: x } = p1 === undefined ? I : p1; body; }
       const firstPrivateIndex = path.node.params.findIndex(param =>
-        hasPrivateKeys(param),
+        hasPrivateKeys(param as t.FunctionParameter),
       );
       if (firstPrivateIndex === -1) return;
       // wrap function body within IIFE if any param is shadowed
@@ -53,7 +54,7 @@ export default declare(function ({ assertVersion, assumption, types: t }) {
         "body",
         variableDeclaration,
       );
-      params.push(...transformedParams);
+      params.push(...(transformedParams as (t.Identifier | t.RestElement)[]));
       // preserve function.length
       // (b, p1) => {}
       // transforms to
@@ -62,7 +63,7 @@ export default declare(function ({ assertVersion, assumption, types: t }) {
         params[firstAssignmentPatternIndex] = assignmentPattern(
           // @ts-expect-error The transformed assignment pattern must not be a RestElement
           params[firstAssignmentPatternIndex],
-          scope.buildUndefinedNode(),
+          buildUndefinedNode(),
         );
       }
       scope.crawl();
@@ -80,7 +81,7 @@ export default declare(function ({ assertVersion, assumption, types: t }) {
         .get("body")
         .unshiftContainer(
           "body",
-          variableDeclaration("let", [variableDeclarator(node.param, ref)]),
+          variableDeclaration("let", [variableDeclarator(node.param!, ref)]),
         );
       node.param = cloneNode(ref);
       scope.crawl();

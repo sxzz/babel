@@ -6,7 +6,7 @@ import {
 } from "./utils.ts";
 
 export default declare(api => {
-  api.assertVersion(REQUIRED_VERSION(7));
+  api.assertVersion(REQUIRED_VERSION("^7.0.0-0 || ^8.0.0"));
   const { types: t } = api;
   const noDocumentAll = api.assumption("noDocumentAll") ?? false;
 
@@ -33,7 +33,7 @@ export default declare(api => {
             if (body.length) {
               path.replaceExpressionWithStatements(body);
             } else {
-              path.replaceWith(path.scope.buildUndefinedNode());
+              path.replaceWith(t.buildUndefinedNode());
             }
           }
         },
@@ -126,7 +126,7 @@ export default declare(api => {
         case "VariableDeclaration": {
           const statements: t.Statement[] = [];
           for (const decl of path.get("declarations")) {
-            const init = decl.get("init");
+            const init = decl.get("init") as NodePath<t.Expression>;
             const id = decl.get("id");
             if (doAncestors.has(init.node)) {
               statements.push(...flattenExpression(init));
@@ -152,7 +152,7 @@ export default declare(api => {
           //                  f3();
           //                }
           const body: t.Statement[] = [];
-          const test = path.get("test");
+          const test = path.get("test") as NodePath<t.Expression>;
           if (doAncestors.has(test.node)) {
             body.push(
               ...flattenExpression(test),
@@ -164,7 +164,7 @@ export default declare(api => {
             test.remove();
           }
           body.push(path.node.body);
-          const update = path.get("update");
+          const update = path.get("update") as NodePath<t.Expression>;
           if (doAncestors.has(update.node)) {
             body.push(...flattenExpression(update, { discardResult: true }));
             update.remove();
@@ -172,7 +172,9 @@ export default declare(api => {
           path.set("body", t.blockStatement(body));
 
           // Handle do expression within `init`
-          const init = path.get("init");
+          const init = path.get("init") as NodePath<
+            t.Expression | t.VariableDeclaration
+          >;
           if (doAncestors.has(init.node)) {
             const initNode = init.isExpression()
               ? t.expressionStatement(init.node)
@@ -308,7 +310,7 @@ export default declare(api => {
               }
               path.replaceWith(uid);
             } else {
-              path.replaceWith(path.scope.buildUndefinedNode());
+              path.replaceWith(t.buildUndefinedNode());
             }
           }
           return [body.node];
@@ -367,7 +369,7 @@ export default declare(api => {
             t.conditionalExpression(test.node, consequent.node, alternate.node),
           );
           return statements;
-        } else if (path.isOptionalMemberExpression() && path.node.computed) {
+        } else if (path.isOptionalMemberExpression({ computed: true })) {
           const object = path.get("object");
           const property = path.get("property");
           const uid = path.scope.generateDeclaredUidIdentifier("do");
@@ -482,7 +484,7 @@ export default declare(api => {
 
     function flattenLVal(
       path: NodePath<t.LVal | t.PatternLike | t.OptionalMemberExpression>,
-      init: t.Expression | null | undefined,
+      init: t.Expression,
       declare: "var" | "let" | "const" | "using" | "await using" | null,
     ): t.Statement[] {
       switch (path.type) {
@@ -590,10 +592,10 @@ export default declare(api => {
       });
 
       // Skip flattening trailing expressions that are after all the DoExpressions
-      let lastDoExpression: NodePath<t.Expression>;
+      let lastDoExpression: NodePath<t.Expression> | undefined;
       if (!flattenTrailing) {
         while (expressions.length) {
-          const path = expressions.pop();
+          const path = expressions.pop()!;
           if (doAncestors.has(path.node)) {
             lastDoExpression = path;
             break;

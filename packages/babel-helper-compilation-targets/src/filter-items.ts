@@ -2,7 +2,7 @@ import { isGreater, isValid } from "verkit";
 
 import pluginsCompatData from "@babel/compat-data/plugins" with { type: "json" };
 
-import type { Targets } from "./types.ts";
+import type { Targets } from "./types.d.ts";
 import {
   getLowestImplementedVersion,
   isUnreleasedVersion,
@@ -27,7 +27,7 @@ export function targetsSupported(target: Targets, support: Targets) {
       return true;
     }
 
-    const lowestTargetedVersion = target[environment];
+    const lowestTargetedVersion = target[environment]!;
 
     // If targets has unreleased value as a lowest version, then don't require a plugin.
     if (isUnreleasedVersion(lowestTargetedVersion, environment)) {

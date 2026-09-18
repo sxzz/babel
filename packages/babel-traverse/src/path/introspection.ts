@@ -11,6 +11,7 @@ import {
   isStringLiteral,
   isType,
   matchesPattern as _matchesPattern,
+  toComputedKey,
 } from "@babel/types";
 import type * as t from "@babel/types";
 
@@ -38,7 +39,10 @@ export function isStatic(this: NodePath): boolean {
  * been removed yet we still internally know the type and need it to calculate node replacement.
  */
 
-export function isNodeType(this: NodePath, type: string): boolean {
+export function isNodeType(
+  this: NodePath<t.Node | null>,
+  type: string,
+): boolean {
   return isType(this.type, type);
 }
 
@@ -52,7 +56,9 @@ export function isNodeType(this: NodePath, type: string): boolean {
  * to tell the path replacement that it's ok to replace this with an expression.
  */
 
-export function canHaveVariableDeclarationOrExpression(this: NodePath) {
+export function canHaveVariableDeclarationOrExpression(
+  this: NodePath<t.Node | null>,
+): boolean {
   return (
     (this.key === "init" || this.key === "left") && this.parentPath.isFor()
   );
@@ -67,7 +73,7 @@ export function canHaveVariableDeclarationOrExpression(this: NodePath) {
  */
 
 export function canSwapBetweenExpressionAndStatement(
-  this: NodePath,
+  this: NodePath<t.Node | null>,
   replacement: t.Node,
 ): boolean {
   if (this.key !== "body" || !this.parentPath.isArrowFunctionExpression()) {
@@ -123,7 +129,7 @@ export function isCompletionRecord(
  * so we can explode it if necessary.
  */
 
-export function isStatementOrBlock(this: NodePath): boolean {
+export function isStatementOrBlock(this: NodePath<t.Node | null>): boolean {
   if (
     this.parentPath.isLabeledStatement() ||
     isBlockStatement(this.container as t.Node)
@@ -284,7 +290,7 @@ function isExecutionUncertainInList(paths: NodePath[], maxIndex: number) {
   return false;
 }
 
-// TODO(Babel 8)
+// TODO(Babel 9)
 // This can be { before: boolean, after: boolean, unknown: boolean }.
 // This allows transforms like the tdz one to treat cases when the status
 // is both before and unknown/after like if it were before.
@@ -496,18 +502,10 @@ export function resolve(
   this: NodePath,
   dangerous?: boolean,
   resolved?: NodePath[],
-) {
-  return _resolve.call(this, dangerous, resolved) || this;
-}
-
-export function _resolve(
-  this: NodePath,
-  dangerous?: boolean,
-  resolved?: NodePath[],
-): NodePath | undefined | null {
+): NodePath {
   // detect infinite recursion
   // todo: possibly have a max length on this just to be safe
-  if (resolved?.includes(this)) return;
+  if (resolved?.includes(this)) return this;
 
   // we store all the paths we've "resolved" in this array to prevent infinite recursion
   resolved = resolved || [];
@@ -522,18 +520,18 @@ export function _resolve(
     }
   } else if (this.isReferencedIdentifier()) {
     const binding = this.scope.getBinding(this.node.name);
-    if (!binding) return;
+    if (!binding) return this;
 
     // reassigned so we can't really resolve it
-    if (!binding.constant) return;
+    if (!binding.constant) return this;
 
     // todo - lookup module in dependency graph
-    if (binding.kind === "module") return;
+    if (binding.kind === "module") return this;
 
     if (binding.path !== this) {
       const ret = binding.path.resolve(dangerous, resolved);
       // If the identifier resolves to parent node then we can't really resolve it.
-      if (this.find(parent => parent.node === ret.node)) return;
+      if (this.find(parent => parent.node === ret.node)) return this;
       return ret;
     }
   } else if (this.isTypeCastExpression()) {
@@ -543,8 +541,8 @@ export function _resolve(
     // this is dangerous, as non-direct target assignments will mutate it's state
     // making this resolution inaccurate
 
-    const targetKey = this.toComputedKey();
-    if (!isLiteral(targetKey)) return;
+    const targetKey = toComputedKey(this.node);
+    if (!isLiteral(targetKey)) return this;
 
     // @ts-expect-error todo(flow->ts): NullLiteral
     const targetName = targetKey.value;
@@ -574,9 +572,11 @@ export function _resolve(
       if (elem) return elem.resolve(dangerous, resolved);
     }
   }
+
+  return this;
 }
 
-export function isConstantExpression(this: NodePath): boolean {
+export function isConstantExpression(this: NodePath<t.Node | null>): boolean {
   if (this.isIdentifier()) {
     const binding = this.scope.getBinding(this.node.name);
     if (!binding) return false;
@@ -635,7 +635,7 @@ export function isConstantExpression(this: NodePath): boolean {
   return false;
 }
 
-export function isInStrictMode(this: NodePath) {
+export function isInStrictMode(this: NodePath<t.Node | null>) {
   const start = this.isProgram() ? this : this.parentPath;
 
   const strictParent = start.find(path => {

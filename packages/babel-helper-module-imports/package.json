@@ -1,6 +1,6 @@
 {
   "name": "@babel/helper-module-imports",
-  "version": "7.27.1",
+  "version": "8.0.0",
   "description": "Babel helper functions for inserting module loads",
   "author": "The Babel Team (https://babel.dev/team)",
   "homepage": "https://babel.dev/docs/en/next/babel-helper-module-imports",
@@ -22,7 +22,7 @@
     "@babel/core": "workspace:^"
   },
   "engines": {
-    "node": "^20.19.0 || >=22.12.0"
+    "node": "^22.18.0 || >=24.11.0"
   },
   "exports": {
     ".": {

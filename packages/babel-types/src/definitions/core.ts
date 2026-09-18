@@ -27,10 +27,7 @@ import {
   arrayOfType,
   validateArrayOfType,
   validateType,
-  type Validator,
-  type ValidatorImpl,
-  type ValidatorOneOfNodeTypes,
-  type ValidatorType,
+  combine,
 } from "./utils.ts";
 
 export const classMethodOrPropertyUnionShapeCommon = (
@@ -74,6 +71,32 @@ export const classMethodOrPropertyUnionShapeCommon = (
   },
 });
 
+const memberExpressionUnionShapeCommon = {
+  unionShape: {
+    discriminator: "computed",
+    shapes: [
+      {
+        name: "computed",
+        value: [true],
+        properties: {
+          property: {
+            validate: assertNodeType("Expression"),
+          },
+        },
+      },
+      {
+        name: "nonComputed",
+        value: [false],
+        properties: {
+          property: {
+            validate: assertNodeType("Identifier", "PrivateName"),
+          },
+        },
+      },
+    ],
+  },
+};
+
 const defineType = defineAliasedType("Standardized");
 
 defineType("ArrayExpression", {
@@ -92,15 +115,15 @@ defineType("ArrayExpression", {
 defineType("AssignmentExpression", {
   fields: {
     operator: {
-      validate: Object.assign(
+      validate: combine(
         (function () {
           const identifier = assertOneOf(...ASSIGNMENT_OPERATORS);
           const pattern = assertOneOf("=");
 
-          return function (node: t.AssignmentExpression, key, val) {
+          return function (node, key, val) {
             const validator = is("Pattern", node.left) ? pattern : identifier;
             validator(node, key, val);
-          } satisfies ValidatorImpl;
+          };
         })(),
         { oneOf: ASSIGNMENT_OPERATORS },
       ),
@@ -138,13 +161,12 @@ defineType("BinaryExpression", {
         const expression = assertNodeType("Expression");
         const inOp = assertNodeType("Expression", "PrivateName");
 
-        const validator: ValidatorOneOfNodeTypes = Object.assign(
+        const validator = combine(
           function (node: t.BinaryExpression, key, val) {
             const validator = node.operator === "in" ? inOp : expression;
             validator(node, key, val);
-          } satisfies ValidatorImpl,
-          // todo(ts): can be discriminated union by `operator` property
-          { oneOfNodeTypes: ["Expression", "PrivateName"] as const },
+          },
+          { oneOfNodeTypes: ["Expression", "PrivateName"] },
         );
         return validator;
       })(),
@@ -152,6 +174,29 @@ defineType("BinaryExpression", {
     right: {
       validate: assertNodeType("Expression"),
     },
+  },
+  unionShape: {
+    discriminator: "operator",
+    shapes: [
+      {
+        name: "in",
+        value: ["in"],
+        properties: {
+          left: {
+            validate: assertNodeType("Expression", "PrivateName"),
+          },
+        },
+      },
+      {
+        name: "notIn",
+        value: BINARY_OPERATORS.filter(op => op !== "in"),
+        properties: {
+          left: {
+            validate: assertNodeType("Expression"),
+          },
+        },
+      },
+    ],
   },
   visitor: ["left", "right"],
   aliases: ["Binary", "Expression"],
@@ -214,7 +259,12 @@ defineType("CallExpression", {
   aliases: ["Expression"],
   fields: {
     callee: {
-      validate: assertNodeType("Expression", "Super", "V8IntrinsicIdentifier"),
+      validate: assertNodeType(
+        "Expression",
+        "Super",
+        "Import",
+        "V8IntrinsicIdentifier",
+      ),
     },
     arguments: validateArrayOfType(
       "Expression",
@@ -378,7 +428,7 @@ defineType("ForStatement", {
   },
 });
 
-export const functionCommon = () => ({
+const functionCommon = () => ({
   params: validateArrayOfType("FunctionParameter"),
   generator: {
     default: false,
@@ -388,7 +438,7 @@ export const functionCommon = () => ({
   },
 });
 
-export const functionTypeAnnotationCommon = () => ({
+const functionTypeAnnotationCommon = () => ({
   returnType: {
     validate: assertNodeType("TypeAnnotation", "TSTypeAnnotation"),
 
@@ -433,7 +483,7 @@ defineType("FunctionDeclaration", {
       validate: assertNodeType("BlockStatement"),
     },
     predicate: {
-      validate: assertNodeType("DeclaredPredicate", "InferredPredicate"),
+      validate: assertNodeType("FlowPredicate"),
       optional: true,
     },
   },
@@ -478,7 +528,7 @@ defineType("FunctionExpression", {
       validate: assertNodeType("BlockStatement"),
     },
     predicate: {
-      validate: assertNodeType("DeclaredPredicate", "InferredPredicate"),
+      validate: assertNodeType("FlowPredicate"),
       optional: true,
     },
   },
@@ -515,14 +565,14 @@ defineType("Identifier", {
     name: {
       validate: chain(
         assertValueType("string"),
-        Object.assign(
+        combine(
           function (node, key, val) {
             if (!isValidIdentifier(val, false)) {
               throw new TypeError(`"${val}" is not a valid identifier name`);
             }
-          } satisfies ValidatorImpl,
-          { type: "string" as const },
-        ) satisfies ValidatorType,
+          },
+          { type: "string" },
+        ),
       ),
     },
   },
@@ -610,7 +660,7 @@ defineType("NumericLiteral", {
     value: {
       validate: chain(
         assertValueType("number"),
-        Object.assign(
+        combine(
           function (node, key, val) {
             if (1 / val < 0 || !Number.isFinite(val)) {
               const error = new Error(
@@ -621,14 +671,14 @@ defineType("NumericLiteral", {
               // TODO(@nicolo-ribaudo) Fix regenerator to not pass negative
               // numbers here.
               if (!IS_STANDALONE) {
-                if (!new Error().stack.includes("regenerator")) {
+                if (!new Error().stack!.includes("regenerator")) {
                   throw error;
                 }
               }
             }
-          } satisfies ValidatorImpl,
-          { type: "number" as const },
-        ) satisfies ValidatorType,
+          },
+          { type: "number" },
+        ),
       ),
     },
   },
@@ -660,15 +710,15 @@ defineType("RegExpLiteral", {
     flags: {
       validate: chain(
         assertValueType("string"),
-        Object.assign(
+        combine(
           function (node, key, val) {
             const invalid = /[^dgimsuvy]/.exec(val);
             if (invalid) {
               throw new TypeError(`"${invalid[0]}" is not a valid RegExp flag`);
             }
-          } satisfies ValidatorImpl,
-          { type: "string" as const },
-        ) satisfies ValidatorType,
+          },
+          { type: "string" },
+        ),
       ),
       default: "",
     },
@@ -693,32 +743,10 @@ defineType("LogicalExpression", {
 });
 
 defineType("MemberExpression", {
-  builder: ["object", "property", "computed", ...[]],
+  builder: ["object", "property", "computed"],
   visitor: ["object", "property"],
   aliases: ["Expression", "LVal", "PatternLike"],
-  unionShape: {
-    discriminator: "computed",
-    shapes: [
-      {
-        name: "computed",
-        value: [true],
-        properties: {
-          property: {
-            validate: assertNodeType("Expression"),
-          },
-        },
-      },
-      {
-        name: "nonComputed",
-        value: [false],
-        properties: {
-          property: {
-            validate: assertNodeType("Identifier", "PrivateName"),
-          },
-        },
-      },
-    ],
-  },
+  ...memberExpressionUnionShapeCommon,
   fields: {
     object: {
       validate: assertNodeType("Expression", "Super"),
@@ -728,16 +756,15 @@ defineType("MemberExpression", {
         const normal = assertNodeType("Identifier", "PrivateName");
         const computed = assertNodeType("Expression");
 
-        const validator: ValidatorOneOfNodeTypes = function (
-          node: t.MemberExpression,
-          key,
-          val,
-        ) {
-          const validator: Validator = node.computed ? computed : normal;
-          validator(node, key, val);
-        };
-        // todo(ts): can be discriminated union by `computed` property
-        validator.oneOfNodeTypes = ["Expression", "Identifier", "PrivateName"];
+        const validator = combine(
+          function (node: t.MemberExpression, key, val) {
+            const validator = node.computed ? computed : normal;
+            validator(node, key, val);
+          },
+          {
+            oneOfNodeTypes: ["Expression", "Identifier", "PrivateName"],
+          },
+        );
         return validator;
       })(),
     },
@@ -747,7 +774,26 @@ defineType("MemberExpression", {
   },
 });
 
-defineType("NewExpression", { inherits: "CallExpression" });
+defineType("NewExpression", {
+  inherits: "CallExpression",
+  fields: {
+    callee: {
+      validate: assertNodeType("Expression", "V8IntrinsicIdentifier"),
+    },
+    arguments: validateArrayOfType(
+      "Expression",
+      "SpreadElement",
+      "ArgumentPlaceholder",
+    ),
+    typeArguments: {
+      validate: assertNodeType(
+        "TypeParameterInstantiation",
+        "TSTypeParameterInstantiation",
+      ),
+      optional: true,
+    },
+  },
+});
 
 defineType("Program", {
   // Note: We explicitly leave 'interpreter' out here because it is
@@ -816,22 +862,21 @@ defineType("ObjectMethod", {
         );
         const computed = assertNodeType("Expression");
 
-        const validator: ValidatorOneOfNodeTypes = function (
-          node: t.ObjectMethod,
-          key,
-          val,
-        ) {
-          const validator = node.computed ? computed : normal;
-          validator(node, key, val);
-        };
-        // todo(ts): can be discriminated union by `computed` property
-        validator.oneOfNodeTypes = [
-          "Expression",
-          "Identifier",
-          "StringLiteral",
-          "NumericLiteral",
-          "BigIntLiteral",
-        ];
+        const validator = combine(
+          function (node: t.ObjectMethod, key, val) {
+            const validator = node.computed ? computed : normal;
+            validator(node, key, val);
+          },
+          {
+            oneOfNodeTypes: [
+              "Expression",
+              "Identifier",
+              "StringLiteral",
+              "NumericLiteral",
+              "BigIntLiteral",
+            ],
+          },
+        );
         return validator;
       })(),
     },
@@ -855,36 +900,8 @@ defineType("ObjectMethod", {
 });
 
 defineType("ObjectProperty", {
-  builder: ["key", "value", "computed", "shorthand", ...[]],
-  unionShape: {
-    discriminator: "computed",
-    shapes: [
-      {
-        name: "computed",
-        value: [true],
-        properties: {
-          key: {
-            validate: assertNodeType("Expression"),
-          },
-        },
-      },
-      {
-        name: "nonComputed",
-        value: [false],
-        properties: {
-          key: {
-            validate: assertNodeType(
-              "Identifier",
-              "StringLiteral",
-              "NumericLiteral",
-              "BigIntLiteral",
-              "PrivateName",
-            ),
-          },
-        },
-      },
-    ],
-  },
+  builder: ["key", "value", "computed", "shorthand"],
+  ...classMethodOrPropertyUnionShapeCommon(true),
   fields: {
     computed: {
       default: false,
@@ -901,13 +918,12 @@ defineType("ObjectProperty", {
 
         const computed = assertNodeType("Expression");
 
-        const validator: ValidatorOneOfNodeTypes = Object.assign(
+        const validator = combine(
           function (node: t.ObjectProperty, key, val) {
             const validator = node.computed ? computed : normal;
             validator(node, key, val);
-          } satisfies ValidatorImpl,
+          },
           {
-            // todo(ts): can be discriminated union by `computed` property
             oneOfNodeTypes: [
               "Expression",
               "Identifier",
@@ -915,7 +931,7 @@ defineType("ObjectProperty", {
               "NumericLiteral",
               "BigIntLiteral",
               "PrivateName",
-            ] as const,
+            ],
           },
         );
         return validator;
@@ -929,7 +945,7 @@ defineType("ObjectProperty", {
     shorthand: {
       validate: chain(
         assertValueType("boolean"),
-        Object.assign(
+        combine(
           function (node: t.ObjectProperty, key, shorthand) {
             if (!shorthand) return;
 
@@ -944,9 +960,9 @@ defineType("ObjectProperty", {
                 "Property shorthand of ObjectProperty cannot be true if key is not an Identifier",
               );
             }
-          } satisfies ValidatorImpl,
-          { type: "boolean" as const },
-        ) satisfies ValidatorType,
+          },
+          { type: "boolean" },
+        ),
       ),
       default: false,
     },
@@ -995,7 +1011,7 @@ defineType("RestElement", {
       ),
     },
   },
-  validate: function (parent: t.ArrayPattern | t.ObjectPattern, key) {
+  validate: function (parent, key) {
     const match = /(\w+)\[(\d+)\]/.exec(key.toString());
     if (!match) throw new Error("Internal Babel error: malformed key.");
 
@@ -1007,7 +1023,7 @@ defineType("RestElement", {
     if ((parent[listKey] as t.Node[]).length > +index + 1) {
       throw new TypeError(`RestElement must be last element of ${listKey}`);
     }
-  } satisfies ValidatorImpl,
+  },
 });
 
 defineType("ReturnStatement", {
@@ -1082,7 +1098,7 @@ defineType("TryStatement", {
     block: {
       validate: chain(
         assertNodeType("BlockStatement"),
-        Object.assign(
+        combine(
           function (node: t.TryStatement) {
             // This validator isn't put at the top level because we can run it
             // even if this node doesn't have a parent.
@@ -1092,9 +1108,9 @@ defineType("TryStatement", {
                 "TryStatement expects either a handler or finalizer, or both",
               );
             }
-          } satisfies ValidatorImpl,
-          { oneOfNodeTypes: ["BlockStatement"] as const },
-        ) satisfies ValidatorOneOfNodeTypes,
+          },
+          { oneOfNodeTypes: ["BlockStatement"] },
+        ),
       ),
     },
     handler: {
@@ -1273,11 +1289,6 @@ defineType("AssignmentPattern", {
     right: {
       validate: assertNodeType("Expression"),
     },
-    // For TypeScript
-    decorators: {
-      validate: arrayOfType("Decorator"),
-      optional: true,
-    },
   },
 });
 
@@ -1309,16 +1320,35 @@ defineType("ArrowFunctionExpression", {
   ],
   fields: {
     ...functionCommon(),
+    generator: {
+      // NOTE: This is not actually supported by arrow function, but since it
+      // comes from functionCommon() also supporting it as a field here in the
+      // type definitions makes usage of t.Function simpler.
+      // Make it optional at least, defaulting to `null`.
+      default: null,
+      optional: true,
+      validate: combine(
+        (node, key, val) => {
+          if (val) {
+            throw new TypeError(
+              "ArrowFunctionExpression cannot be a generator",
+            );
+          }
+        },
+        { type: "boolean" },
+      ),
+    },
     ...functionTypeAnnotationCommon(),
     expression: {
       // https://github.com/babel/babylon/issues/505
+      optional: true,
       validate: assertValueType("boolean"),
     },
     body: {
       validate: assertNodeType("BlockStatement", "Expression"),
     },
     predicate: {
-      validate: assertNodeType("DeclaredPredicate", "InferredPredicate"),
+      validate: assertNodeType("FlowPredicate"),
       optional: true,
     },
   },
@@ -1373,7 +1403,7 @@ defineType("ClassExpression", {
       optional: true,
       validate: assertNodeType("Expression"),
     },
-    ["superTypeArguments"]: {
+    superTypeArguments: {
       validate: assertNodeType(
         "TypeParameterInstantiation",
         "TSTypeParameterInstantiation",
@@ -1420,7 +1450,7 @@ defineType("ClassDeclaration", {
       optional: true,
       validate: assertNodeType("Expression"),
     },
-    ["superTypeArguments"]: {
+    superTypeArguments: {
       validate: assertNodeType(
         "TypeParameterInstantiation",
         "TSTypeParameterInstantiation",
@@ -1466,8 +1496,7 @@ export const importAttributes = {
 };
 
 defineType("ExportAllDeclaration", {
-  builder: ["source"],
-  visitor: ["source", "attributes", "assertions"],
+  visitor: ["source", "attributes"],
   aliases: [
     "Statement",
     "Declaration",
@@ -1493,17 +1522,19 @@ defineType("ExportDefaultDeclaration", {
   ],
   fields: {
     declaration: validateType(
-      "TSDeclareFunction",
       "FunctionDeclaration",
       "ClassDeclaration",
       "Expression",
+      "TSDeclareFunction",
+      "TSInterfaceDeclaration",
+      "EnumDeclaration",
     ),
     exportKind: validateOptional(assertOneOf("value")),
   },
 });
 
 defineType("ExportNamedDeclaration", {
-  builder: ["declaration", "specifiers", "source"],
+  builder: ["declaration", "specifiers", "source", "attributes"],
   visitor: ["declaration", "specifiers", "source", "attributes"],
   aliases: [
     "Statement",
@@ -1516,7 +1547,7 @@ defineType("ExportNamedDeclaration", {
       optional: true,
       validate: chain(
         assertNodeType("Declaration"),
-        Object.assign(
+        combine(
           function (node: t.ExportNamedDeclaration, key, val) {
             // This validator isn't put at the top level because we can run it
             // even if this node doesn't have a parent.
@@ -1533,9 +1564,25 @@ defineType("ExportNamedDeclaration", {
             if (val && node.source) {
               throw new TypeError("Cannot export a declaration from a source");
             }
-          } satisfies ValidatorImpl,
-          { oneOfNodeTypes: ["Declaration"] as const },
-        ) satisfies ValidatorOneOfNodeTypes,
+          },
+          {
+            oneOfNodeTypes: [
+              "VariableDeclaration",
+              "FunctionDeclaration",
+              "ClassDeclaration",
+              "TSDeclareFunction",
+              "TSEnumDeclaration",
+              "TSImportEqualsDeclaration",
+              "TSInterfaceDeclaration",
+              "TSModuleDeclaration",
+              "TSTypeAliasDeclaration",
+              "EnumDeclaration",
+              "InterfaceDeclaration",
+              "OpaqueType",
+              "TypeAlias",
+            ],
+          },
+        ),
       ),
     },
     ...importAttributes,
@@ -1550,19 +1597,19 @@ defineType("ExportNamedDeclaration", {
           );
           const sourceless = assertNodeType("ExportSpecifier");
 
-          return Object.assign(
+          return combine(
             function (node: t.ExportNamedDeclaration, key, val) {
               const validator = node.source ? sourced : sourceless;
               validator(node, key, val);
-            } satisfies ValidatorImpl,
+            },
             {
               oneOfNodeTypes: [
                 "ExportSpecifier",
                 "ExportDefaultSpecifier",
                 "ExportNamespaceSpecifier",
-              ] as const,
+              ],
             },
-          ) satisfies ValidatorOneOfNodeTypes;
+          );
         })(),
       ),
     },
@@ -1579,7 +1626,7 @@ defineType("ExportSpecifier", {
   aliases: ["ModuleSpecifier"],
   fields: {
     local: {
-      validate: assertNodeType("Identifier"),
+      validate: assertNodeType("Identifier", "StringLiteral"),
     },
     exported: {
       validate: assertNodeType("Identifier", "StringLiteral"),
@@ -1618,14 +1665,14 @@ defineType("ForOfStatement", {
           "TSNonNullExpression",
         );
 
-        return Object.assign(
+        return combine(
           function (node, key, val) {
             if (is("VariableDeclaration", val)) {
               declaration(node, key, val);
             } else {
               lval(node, key, val);
             }
-          } satisfies ValidatorImpl,
+          },
           {
             oneOfNodeTypes: [
               "VariableDeclaration",
@@ -1637,9 +1684,9 @@ defineType("ForOfStatement", {
               "TSSatisfiesExpression",
               "TSTypeAssertion",
               "TSNonNullExpression",
-            ] as const,
+            ],
           },
-        ) satisfies ValidatorOneOfNodeTypes;
+        );
       })(),
     },
     right: {
@@ -1655,7 +1702,7 @@ defineType("ForOfStatement", {
 });
 
 defineType("ImportDeclaration", {
-  builder: ["specifiers", "source"],
+  builder: ["specifiers", "source", "attributes"],
   visitor: ["specifiers", "source", "attributes"],
   aliases: ["Statement", "Declaration", "ImportOrExportDeclaration"],
   fields: {
@@ -1725,24 +1772,6 @@ defineType("ImportSpecifier", {
   },
 });
 
-defineType("ImportExpression", {
-  visitor: ["source", "options"],
-  aliases: ["Expression"],
-  fields: {
-    phase: {
-      default: null,
-      validate: assertOneOf("source", "defer"),
-    },
-    source: {
-      validate: assertNodeType("Expression"),
-    },
-    options: {
-      validate: assertNodeType("Expression"),
-      optional: true,
-    },
-  },
-});
-
 defineType("MetaProperty", {
   visitor: ["meta", "property"],
   aliases: ["Expression"],
@@ -1750,7 +1779,7 @@ defineType("MetaProperty", {
     meta: {
       validate: chain(
         assertNodeType("Identifier"),
-        Object.assign(
+        combine(
           function (node: t.MetaProperty, key, val) {
             let property;
             switch (val.name) {
@@ -1767,9 +1796,9 @@ defineType("MetaProperty", {
             if (!is("Identifier", node.property, { name: property })) {
               throw new TypeError("Unrecognised MetaProperty");
             }
-          } satisfies ValidatorImpl,
-          { oneOfNodeTypes: ["Identifier"] as const },
-        ) satisfies ValidatorOneOfNodeTypes,
+          },
+          { oneOfNodeTypes: ["Identifier"] },
+        ),
       ),
     },
     property: {
@@ -1781,6 +1810,7 @@ defineType("MetaProperty", {
 export const classMethodOrPropertyCommon = () => ({
   abstract: {
     validate: assertValueType("boolean"),
+    default: false,
     optional: true,
   },
   accessibility: {
@@ -1791,6 +1821,8 @@ export const classMethodOrPropertyCommon = () => ({
     default: false,
   },
   override: {
+    optional: true,
+    validate: assertValueType("boolean"),
     default: false,
   },
   computed: {
@@ -1809,7 +1841,7 @@ export const classMethodOrPropertyCommon = () => ({
           "NumericLiteral",
           "BigIntLiteral",
         );
-        const computed = assertNodeType("Expression");
+        const computed = assertNodeType("Expression", "PrivateName");
 
         return function (
           node: Extract<t.Node, { computed: boolean }>,
@@ -1818,7 +1850,7 @@ export const classMethodOrPropertyCommon = () => ({
         ) {
           const validator = node.computed ? computed : normal;
           validator(node, key, val);
-        } satisfies ValidatorImpl;
+        };
       })(),
       assertNodeType(
         "Identifier",
@@ -1826,12 +1858,13 @@ export const classMethodOrPropertyCommon = () => ({
         "NumericLiteral",
         "BigIntLiteral",
         "Expression",
+        "PrivateName",
       ),
     ),
   },
 });
 
-export const classMethodOrDeclareMethodCommon = () => ({
+export const classMethodOrDeclareMethodCommon = (allowDecorators = true) => ({
   ...functionCommon(),
   ...classMethodOrPropertyCommon(),
   params: validateArrayOfType("FunctionParameter", "TSParameterProperty"),
@@ -1846,10 +1879,14 @@ export const classMethodOrDeclareMethodCommon = () => ({
     ),
     optional: true,
   },
-  decorators: {
-    validate: arrayOfType("Decorator"),
-    optional: true,
-  },
+  ...(allowDecorators
+    ? {
+        decorators: {
+          validate: arrayOfType("Decorator"),
+          optional: true,
+        },
+      }
+    : {}),
 });
 
 defineType("ClassMethod", {
@@ -1907,11 +1944,7 @@ defineType("SpreadElement", {
   },
 });
 
-defineType(
-  "Super",
-
-  undefined,
-);
+defineType("Super");
 
 defineType("TaggedTemplateExpression", {
   visitor: ["tag", "typeArguments", "quasi"],
@@ -1924,7 +1957,7 @@ defineType("TaggedTemplateExpression", {
     quasi: {
       validate: assertNodeType("TemplateLiteral"),
     },
-    ["typeArguments"]: {
+    typeArguments: {
       validate: assertNodeType(
         "TypeParameterInstantiation",
         "TSTypeParameterInstantiation",
@@ -2012,7 +2045,7 @@ defineType("TemplateLiteral", {
               } quasis but got ${node.quasis.length}`,
             );
           }
-        } satisfies ValidatorImpl,
+        },
       ),
     },
   },
@@ -2026,16 +2059,16 @@ defineType("YieldExpression", {
     delegate: {
       validate: chain(
         assertValueType("boolean"),
-        Object.assign(
+        combine(
           function (node: t.YieldExpression, key, val) {
             if (val && !node.argument) {
               throw new TypeError(
                 "Property delegate of YieldExpression cannot be true if there is no argument",
               );
             }
-          } satisfies ValidatorImpl,
-          { type: "boolean" as const },
-        ) satisfies ValidatorType,
+          },
+          { type: "boolean" },
+        ),
       ),
       default: false,
     },
@@ -2059,9 +2092,28 @@ defineType("AwaitExpression", {
 });
 
 // --- ES2019 ---
-defineType("Import", {
+defineType("ImportExpression", {
+  visitor: ["source", "options"],
   aliases: ["Expression"],
+  fields: {
+    phase: {
+      default: null,
+      validate: assertOneOf("source", "defer"),
+    },
+    source: {
+      validate: assertNodeType("Expression"),
+    },
+    options: {
+      validate: assertNodeType("Expression"),
+      optional: true,
+    },
+  },
 });
+
+/**
+ * @deprecated Use `ImportExpression` instead.
+ */
+defineType("Import");
 
 // --- ES2020 ---
 defineType("BigIntLiteral", {
@@ -2079,7 +2131,7 @@ defineType("ExportNamespaceSpecifier", {
   aliases: ["ModuleSpecifier"],
   fields: {
     exported: {
-      validate: assertNodeType("Identifier"),
+      validate: assertNodeType("Identifier", "StringLiteral"),
     },
   },
 });
@@ -2089,24 +2141,23 @@ defineType("OptionalMemberExpression", {
   visitor: ["object", "property"],
   // todo: Add OptionalMemberExpression to LVal when optional-chaining-assign reaches stage 4
   aliases: ["Expression"],
+  ...memberExpressionUnionShapeCommon,
   fields: {
     object: {
       validate: assertNodeType("Expression"),
     },
     property: {
       validate: (function () {
-        const normal = assertNodeType("Identifier");
+        const normal = assertNodeType("Identifier", "PrivateName");
         const computed = assertNodeType("Expression");
 
-        const validator: ValidatorOneOfNodeTypes = Object.assign(
+        return combine(
           function (node: t.OptionalMemberExpression, key, val) {
             const validator = node.computed ? computed : normal;
             validator(node, key, val);
-          } satisfies ValidatorImpl,
-          // todo(ts): can be discriminated union by `computed` property
-          { oneOfNodeTypes: ["Expression", "Identifier"] as const },
+          },
+          { oneOfNodeTypes: ["Expression", "PrivateName"] },
         );
-        return validator;
       })(),
     },
     computed: {
@@ -2159,83 +2210,6 @@ defineType("ClassProperty", {
   ...classMethodOrPropertyUnionShapeCommon(),
   fields: {
     ...classMethodOrPropertyCommon(),
-    value: {
-      validate: assertNodeType("Expression"),
-      optional: true,
-    },
-    definite: {
-      validate: assertValueType("boolean"),
-      optional: true,
-    },
-    typeAnnotation: {
-      validate: assertNodeType("TypeAnnotation", "TSTypeAnnotation"),
-
-      optional: true,
-    },
-    decorators: {
-      validate: arrayOfType("Decorator"),
-      optional: true,
-    },
-    readonly: {
-      validate: assertValueType("boolean"),
-      optional: true,
-    },
-    declare: {
-      validate: assertValueType("boolean"),
-      optional: true,
-    },
-    variance: {
-      validate: assertNodeType("Variance"),
-      optional: true,
-    },
-  },
-});
-
-defineType("ClassAccessorProperty", {
-  visitor: ["decorators", "key", "typeAnnotation", "value"],
-  builder: [
-    "key",
-    "value",
-    "typeAnnotation",
-    "decorators",
-    "computed",
-    "static",
-  ],
-  aliases: ["Property", "Accessor"],
-  ...classMethodOrPropertyUnionShapeCommon(true),
-  fields: {
-    ...classMethodOrPropertyCommon(),
-    key: {
-      validate: chain(
-        (function () {
-          const normal = assertNodeType(
-            "Identifier",
-            "StringLiteral",
-            "NumericLiteral",
-            "BigIntLiteral",
-            "PrivateName",
-          );
-          const computed = assertNodeType("Expression");
-
-          return function (
-            node: t.ClassAccessorProperty,
-            key: string,
-            val: any,
-          ) {
-            const validator = node.computed ? computed : normal;
-            validator(node, key, val);
-          } satisfies ValidatorImpl;
-        })(),
-        assertNodeType(
-          "Identifier",
-          "StringLiteral",
-          "NumericLiteral",
-          "BigIntLiteral",
-          "Expression",
-          "PrivateName",
-        ),
-      ),
-    },
     value: {
       validate: assertNodeType("Expression"),
       optional: true,

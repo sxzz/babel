@@ -1,7 +1,6 @@
 import * as babel from "@babel/core";
 
-import _reactPreset from "../lib/index.js";
-const reactPreset = _reactPreset.default || _reactPreset;
+import reactPreset from "../lib/index.js";
 
 describe("react preset", () => {
   it("does throw clear error when no options passed for Babel 6", () => {
@@ -33,13 +32,8 @@ describe("react preset", () => {
         envName: "development",
       }).code,
     ).toMatchInlineSnapshot(`
-      "var _jsxFileName = \\"\\";
-      import { jsxDEV as _jsxDEV } from \\"react/jsx-dev-runtime\\";
-      /*#__PURE__*/_jsxDEV(\\"a\\", {}, void 0, false, {
-        fileName: _jsxFileName,
-        lineNumber: 1,
-        columnNumber: 1
-      }, this);"
+      "import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
+      /*#__PURE__*/_jsxDEV("a", {}, void 0, false);"
     `);
 
     expect(
@@ -49,8 +43,8 @@ describe("react preset", () => {
         envName: "production",
       }).code,
     ).toMatchInlineSnapshot(`
-      "import { jsx as _jsx } from \\"react/jsx-runtime\\";
-      /*#__PURE__*/_jsx(\\"a\\", {});"
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      /*#__PURE__*/_jsx("a", {});"
     `);
   });
 });

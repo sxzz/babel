@@ -81,7 +81,7 @@ describe("NodePath", () => {
         .filter(isAndAssertFilter);
 
       expect(keys).toMatchInlineSnapshot(`
-        Array [
+        [
           "_guessExecutionStatusRelativeTo",
           "addComment",
           "addComments",
@@ -155,10 +155,8 @@ describe("NodePath", () => {
           "skipKey",
           "splitExportDeclaration",
           "stop",
-          "toComputedKey",
           "unshiftContainer",
           "unwrapFunctionEnvironment",
-          "visit",
           "willIMaybeExecuteBefore",
         ]
       `);

@@ -4,11 +4,10 @@ import { types as t, type NodePath } from "@babel/core";
 
 export interface Options {
   requireDirective?: boolean;
-  allowDeclareFields?: boolean;
 }
 
 export default declare((api, opts: Options) => {
-  api.assertVersion(REQUIRED_VERSION(7));
+  api.assertVersion(REQUIRED_VERSION("^7.0.0-0 || ^8.0.0"));
 
   const FLOW_DIRECTIVE = /@flow(?:\s+(?:strict(?:-local)?|weak))?|@noflow/;
 

@@ -27,12 +27,20 @@ function variableDeclarationHasDestructuringPattern(
 
 export interface Options {
   allowArrayLike?: boolean;
+  /** @deprecated Use the `iterableIsArray` and `objectRestNoSymbols` assumptions instead. */
   loose?: boolean;
   useBuiltIns?: boolean;
 }
 
 export default declare((api, options: Options) => {
-  api.assertVersion(REQUIRED_VERSION(7));
+  api.assertVersion(REQUIRED_VERSION("^7.0.0-0 || ^8.0.0"));
+
+  if ("loose" in options) {
+    console.warn(
+      "@babel/plugin-transform-destructuring: The 'loose' option has been deprecated, " +
+        "use the `iterableIsArray` and `objectRestNoSymbols` assumptions instead (https://babeljs.io/assumptions).",
+    );
+  }
 
   const { useBuiltIns = false } = options;
 
@@ -80,7 +88,7 @@ export default declare((api, options: Options) => {
           // but the new do-expression proposal plans to ban iteration ends in the
           // do block, maybe we can get rid of this
           if (statementBody.length === 0 && path.isCompletionRecord()) {
-            nodes.unshift(t.expressionStatement(scope.buildUndefinedNode()));
+            nodes.unshift(t.expressionStatement(t.buildUndefinedNode()));
           }
 
           nodes.unshift(

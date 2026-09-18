@@ -50,7 +50,7 @@ export default async function ({
       });
 
       code += result.code + "\n";
-      offset += countNewlines(result.code) + 1;
+      offset += countNewlines(result.code!) + 1;
     }
 
     const map = new AnyMap({
@@ -209,7 +209,7 @@ export default async function ({
 
   async function files(filenames: string[]): Promise<void> {
     if (cliOptions.watch) {
-      watcher.enable({ enableGlobbing: false });
+      watcher.enable();
     }
 
     if (!cliOptions.skipInitialBuild) {

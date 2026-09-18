@@ -1,6 +1,9 @@
 import { coerce, type SemVer } from "verkit";
 import corejs3Polyfills from "core-js-compat/data.json" with { type: "json" };
-import { plugins as pluginsList } from "./plugins-compat-data.ts";
+import {
+  plugins as pluginsList,
+  pluginsBugfixes as bugfixPluginsList,
+} from "./plugins-compat-data.ts";
 import moduleTransformations from "./module-transformations.ts";
 import {
   TopLevelOptions,
@@ -15,11 +18,14 @@ import type {
   ModuleOption,
   Options,
   PluginListOption,
-} from "./types.ts";
+} from "./types.d.ts";
 
 const v = new OptionValidator(PACKAGE_JSON.name);
 
-const allPluginsList = Object.keys(pluginsList);
+const allPluginsList = [
+  ...Object.keys(pluginsList),
+  ...Object.keys(bugfixPluginsList),
+];
 
 // NOTE: Since module plugins are handled separately compared to other plugins (via the "modules" option) it
 // should only be possible to exclude and not include module plugins, otherwise it's possible that preset-env
@@ -42,10 +48,10 @@ const getValidIncludesAndExcludes = (
   return Array.from(set);
 };
 
-function flatMap<T, U>(array: T[], fn: (item: T) => U[]): U[] {
-  return Array.prototype.concat.apply([], array.map(fn));
-}
-
+/*
+ * NOTE: When running `yarn knip`, this export is marked as unused. It's actually used
+ * in ../../test/normalize-options.skip-bundled.js.
+ */
 export const normalizePluginName = (plugin: string) =>
   plugin.replace(/^(?:@babel\/|babel-)(?:plugin-)?/, "");
 
@@ -59,7 +65,7 @@ const expandIncludesAndExcludes = (
   const filterableItems = getValidIncludesAndExcludes(type, corejs);
 
   const invalidFilters: PluginListOption = [];
-  const selectedPlugins = flatMap(filterList, filter => {
+  const selectedPlugins = filterList.flatMap(filter => {
     let re: RegExp;
     if (typeof filter === "string") {
       try {
@@ -89,6 +95,10 @@ const expandIncludesAndExcludes = (
   return selectedPlugins;
 };
 
+/*
+ * NOTE: When running `yarn knip`, this export is marked as unused. It's actually used
+ * in ../../test/normalize-options.skip-bundled.js.
+ */
 export const checkDuplicateIncludeExcludes = (
   include: string[] = [],
   exclude: string[] = [],
@@ -105,7 +115,7 @@ export const checkDuplicateIncludeExcludes = (
 };
 
 const normalizeTargets = (
-  targets: string | string[] | Options["targets"],
+  targets: string | string[] | Options["targets"] | undefined,
 ): Options["targets"] => {
   // TODO: Allow to use only query or strings as a targets from next breaking change.
   if (typeof targets === "string" || Array.isArray(targets)) {
@@ -114,6 +124,10 @@ const normalizeTargets = (
   return { ...targets };
 };
 
+/*
+ * NOTE: When running `yarn knip`, this export is marked as unused. It's actually used
+ * in ../../test/normalize-options.skip-bundled.js.
+ */
 export const validateModulesOption = (
   modulesOpt: ModuleOption = ModulesOption.auto,
 ) => {
@@ -123,16 +137,14 @@ export const validateModulesOption = (
     `The 'modules' option must be one of \n` +
       ` - 'false' to indicate no module processing\n` +
       ` - a specific module type: 'commonjs', 'amd', 'umd', 'systemjs'` +
-      ` - 'auto' (default) which will automatically select 'false' if the current\n` +
-      `   process is known to support ES module syntax, or "commonjs" otherwise\n`,
+      ` - 'auto' (default) which will automatically select 'commonjs' if the current\n` +
+      `   process is known to *not* support ES module syntax, or 'false' otherwise\n`,
   );
 
   return modulesOpt;
 };
 
-export const validateUseBuiltInsOption = (
-  builtInsOpt: BuiltInsOption = false,
-) => {
+const validateUseBuiltInsOption = (builtInsOpt: BuiltInsOption = false) => {
   v.invariant(
     // @ts-expect-error we have provided fallback for undefined keys
     UseBuiltInsOption[builtInsOpt.toString()] ||
@@ -151,7 +163,7 @@ export type NormalizedCorejsOption = {
   version: SemVer | null | false;
 };
 
-export function normalizeCoreJSOption(
+function normalizeCoreJSOption(
   corejs: CorejsOption | undefined | null,
   useBuiltIns: BuiltInsOption,
 ): NormalizedCorejsOption {
@@ -167,7 +179,7 @@ export function normalizeCoreJSOption(
     rawVersion = corejs.version;
     proposals = Boolean(corejs.proposals);
   } else {
-    rawVersion = corejs as false | string | number | undefined | null;
+    rawVersion = corejs;
   }
 
   const coercedVersion =
@@ -200,7 +212,7 @@ export function normalizeCoreJSOption(
   return { version, proposals };
 }
 
-export default function normalizeOptions(opts: Options) {
+export default function normalizeOptions(opts: Partial<Options>) {
   v.invariant(
     !Object.hasOwn(opts, "bugfixes"),
     "The 'bugfixes' option has been removed, and now bugfix plugins are" +
@@ -209,9 +221,15 @@ export default function normalizeOptions(opts: Options) {
 
   v.validateTopLevelOptions(opts, TopLevelOptions);
 
-  const useBuiltIns = validateUseBuiltInsOption(opts.useBuiltIns);
+  if ((opts as any).useBuiltIns) {
+    throw new Error(
+      "The 'useBuiltIns' option has been removed. Please use babel-plugin-polyfill-corejs3 instead.",
+    );
+  }
 
-  const corejs = normalizeCoreJSOption(opts.corejs, useBuiltIns);
+  // TODO: Remove
+  const useBuiltIns = validateUseBuiltInsOption(false);
+  const corejs = normalizeCoreJSOption(null, useBuiltIns);
 
   const include = expandIncludesAndExcludes(
     opts.include,

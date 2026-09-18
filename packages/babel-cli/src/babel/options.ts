@@ -161,13 +161,10 @@ program.option(
   "--out-file-extension [string]",
   "Use a specific extension for the output files",
 );
+program.argument("[files...]", "List of files to compile.");
 
 program.version(PACKAGE_JSON.version + " (@babel/core " + version + ")");
-program.usage("[options] <files ...>");
-// register an empty action handler so that program.js can throw on
-// unknown options _after_ args
-// see https://github.com/tj/program.js/issues/561#issuecomment-522209408
-program.action(() => {});
+program.usage("[options] [files...]");
 
 export type CmdOptions = {
   babelOptions: InputOptions;
@@ -339,8 +336,6 @@ export default function parseArgv(args: string[]): CmdOptions | null {
   };
 }
 
-function booleanify(val: "false" | "0" | ""): false;
-function booleanify(val: "true" | "1"): true;
 function booleanify(val: string): boolean | string {
   if (val === "true" || val === "1") {
     return true;

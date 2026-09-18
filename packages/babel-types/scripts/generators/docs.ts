@@ -55,7 +55,12 @@ type HistoryItem = [version: string, description: string];
 
 const APIHistory: Record<string, HistoryItem[]> = {
   ClassProperty: [["v7.6.0", "Supports `static`"]],
-  ImportDeclaration: [["v7.20.0", "Supports `module`"]],
+  ExportAllDeclaration: [["v7.29.0", "Supports `attributes`"]],
+  ExportNamedDeclaration: [["v7.29.0", "Supports `attributes`"]],
+  ImportDeclaration: [
+    ["v7.20.0", "Supports `module`"],
+    ["v7.29.0", "Supports `attributes`"],
+  ],
   ImportOrExportDeclaration: [["v7.21.0", "Introduced"]],
   ModuleDeclaration: [["v7.21.0", "Deprecated"]],
   TSSatisfiesExpression: [["v7.20.0", "Introduced"]],
@@ -122,7 +127,7 @@ const aliasDescriptions = {
   Pattern:
     "A cover of [BindingPattern](https://tc39.es/ecma262/#prod-BindingPattern) except Identifiers.",
   PatternLike:
-    "A cover of [BindingPattern](https://tc39.es/ecma262/#prod-BindingPattern)s.",
+    "A cover of [AssignmentPattern](https://tc39.es/ecma262/#prod-AssignmentPattern) and [BindingPattern](https://tc39.es/ecma262/#prod-BindingPattern).",
   Private: "A cover of private class elements and private identifiers.",
   Property: "A cover of object properties and class properties.",
   Pureish:
@@ -199,7 +204,7 @@ function printNodeFields(key: string, readme: string[]) {
         return indexA - indexB;
       })
       .forEach(function (field) {
-        const fieldDefinition: FieldOptions = t.NODE_FIELDS[key][field];
+        const fieldDefinition: FieldOptions<t.Node> = t.NODE_FIELDS[key][field];
         const defaultValue = fieldDefinition.default;
         const fieldDescription = ["`" + field + "`"];
         const validator = fieldDefinition.validate;
@@ -298,12 +303,12 @@ function generateMapAliasToNodeTypes() {
         result.set(alias, []);
       }
 
-      const nodeTypes = result.get(alias);
+      const nodeTypes = result.get(alias)!;
       nodeTypes.push(nodeType);
     }
   }
   for (const deprecated of Object.keys(t.DEPRECATED_ALIASES)) {
-    result.set(deprecated, result.get(t.DEPRECATED_ALIASES[deprecated]));
+    result.set(deprecated, result.get(t.DEPRECATED_ALIASES[deprecated])!);
   }
   return result;
 }
@@ -312,7 +317,7 @@ const mapAliasToNodeTypes = generateMapAliasToNodeTypes();
 readme.push("### Aliases");
 readme.push("");
 for (const alias of [...mapAliasToNodeTypes.keys()].sort()) {
-  const nodeTypes = mapAliasToNodeTypes.get(alias);
+  const nodeTypes = mapAliasToNodeTypes.get(alias)!;
   nodeTypes.sort();
   if (!(alias in aliasDescriptions)) {
     if (alias in t.DEPRECATED_ALIASES) {

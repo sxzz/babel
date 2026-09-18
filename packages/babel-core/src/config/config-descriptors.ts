@@ -1,7 +1,8 @@
 import gensync, { type Handler } from "gensync";
 import { once } from "../gensync-utils/functional.ts";
 
-import { loadPlugin, loadPreset } from "./files/index.ts";
+// eslint-disable-next-line import/no-unresolved, import/extensions
+import { loadPlugin, loadPreset } from "#config/files";
 
 import { getItemDescriptor } from "./item.ts";
 
@@ -101,13 +102,11 @@ export function createCachedDescriptors(
     options: optionsWithResolvedBrowserslistConfigFile(options, dirname),
     plugins: plugins
       ? () =>
-          // @ts-expect-error todo(flow->ts) ts complains about incorrect arguments
           // eslint-disable-next-line @typescript-eslint/no-use-before-define
           createCachedPluginDescriptors(plugins, dirname)(alias)
       : () => handlerOf([]),
     presets: presets
       ? () =>
-          // @ts-expect-error todo(flow->ts) ts complains about incorrect arguments
           // eslint-disable-next-line @typescript-eslint/no-use-before-define
           createCachedPresetDescriptors(presets, dirname)(alias)(
             !!passPerPreset,
@@ -144,10 +143,13 @@ export function createUncachedDescriptors(
   };
 }
 
-const PRESET_DESCRIPTOR_CACHE = new WeakMap();
+const PRESET_DESCRIPTOR_CACHE = new WeakMap<
+  object | Function,
+  WeakMap<object, UnloadedDescriptor<PresetAPI>[]>
+>();
 const createCachedPresetDescriptors = makeWeakCacheSync(
-  (items: PresetItem[], cache: CacheConfigurator<string>) => {
-    const dirname = cache.using(dir => dir);
+  (items: PresetItem[], cache?: CacheConfigurator<string>) => {
+    const dirname = cache!.using(dir => dir);
     return makeStrongCacheSync((alias: string) =>
       makeStrongCache(function* (
         passPerPreset: boolean,
@@ -169,10 +171,13 @@ const createCachedPresetDescriptors = makeWeakCacheSync(
   },
 );
 
-const PLUGIN_DESCRIPTOR_CACHE = new WeakMap();
+const PLUGIN_DESCRIPTOR_CACHE = new WeakMap<
+  object | Function,
+  WeakMap<object, UnloadedDescriptor<PluginAPI>[]>
+>();
 const createCachedPluginDescriptors = makeWeakCacheSync(
-  (items: PluginItem[], cache: CacheConfigurator<string>) => {
-    const dirname = cache.using(dir => dir);
+  (items: PluginItem[], cache?: CacheConfigurator<string>) => {
+    const dirname = cache!.using(dir => dir);
     return makeStrongCache(function* (
       alias: string,
     ): Handler<UnloadedDescriptor<PluginAPI>[]> {
@@ -331,7 +336,6 @@ export function* createDescriptor<API>(
   }
 
   if (!value) {
-    // eslint-disable-next-line @typescript-eslint/no-base-to-string
     throw new Error(`Unexpected falsy value: ${String(value)}`);
   }
 

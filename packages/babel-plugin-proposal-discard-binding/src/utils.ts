@@ -38,7 +38,7 @@ function takeVoidPatternComments(node: t.VoidPattern, parent: t.ArrayPattern) {
 }
 
 function syncScopeForReplacedVoidPattern(path: NodePath<t.Identifier>) {
-  for (let childPath: NodePath = path; childPath.parentPath != null; ) {
+  for (let childPath: NodePath = path; childPath.parentPath != null;) {
     const parentPath: NodePath = childPath.parentPath;
     switch (parentPath.type) {
       case "VariableDeclaration": {
@@ -79,7 +79,7 @@ export function transformVoidPattern(
 }
 
 function* iterateVoidPatternsInLVal(
-  path: NodePath<t.LVal | t.PatternLike>,
+  path: NodePath<t.LVal | t.PatternLike | null>,
 ): Generator<NodePath<t.VoidPattern>> {
   switch (path.type) {
     case "ArrayPattern":
@@ -144,12 +144,10 @@ export function removeTrailingVoidPatternsFromParams(
 }
 
 // https://tc39.es/ecma262/#sec-isanonymousfunctiondefinition
-export function isAnonymousFunctionDefinition(
-  node: t.Node,
+function isAnonymousFunctionDefinition(
+  node: t.Node | null,
 ): node is
-  | t.ClassExpression
-  | t.ArrowFunctionExpression
-  | t.FunctionExpression {
+  t.ClassExpression | t.ArrowFunctionExpression | t.FunctionExpression {
   return (
     t.isArrowFunctionExpression(node) ||
     ((t.isFunctionExpression(node) || t.isClassExpression(node)) && !node.id)
@@ -163,7 +161,9 @@ export function isAnonymousFunctionDefinition(
  * @param path The init of the variable declarator
  * @param state The plugin pass object
  */
-export function handleUsingNamedEvaluation(path: NodePath<t.Expression>) {
+export function handleUsingNamedEvaluation(
+  path: NodePath<t.Expression | null>,
+) {
   if (isAnonymousFunctionDefinition(path.node)) {
     path.replaceWith(t.sequenceExpression([t.numericLiteral(0), path.node]));
   }

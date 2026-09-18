@@ -44,7 +44,7 @@ function setTrailingComments(node: Undone<Node>, comments: Comment[]) {
   if (node.trailingComments === undefined) {
     node.trailingComments = comments;
   } else {
-    node.trailingComments.unshift(...comments);
+    node.trailingComments!.unshift(...comments);
   }
 }
 
@@ -57,7 +57,7 @@ function setLeadingComments(node: Undone<Node>, comments: Comment[]) {
   if (node.leadingComments === undefined) {
     node.leadingComments = comments;
   } else {
-    node.leadingComments.unshift(...comments);
+    node.leadingComments!.unshift(...comments);
   }
 }
 
@@ -70,7 +70,7 @@ export function setInnerComments(node: Undone<Node>, comments: Comment[]) {
   if (node.innerComments === undefined) {
     node.innerComments = comments;
   } else {
-    node.innerComments.unshift(...comments);
+    node.innerComments!.unshift(...comments);
   }
 }
 
@@ -89,7 +89,7 @@ function adjustInnerComments(
   while (lastElement === null && i > 0) {
     lastElement = elements[--i];
   }
-  if (lastElement === null || lastElement.start > commentWS.start) {
+  if (lastElement === null || lastElement.start! > commentWS.start) {
     setInnerComments(node, commentWS.comments);
   } else {
     setTrailingComments(lastElement, commentWS.comments);
@@ -98,7 +98,7 @@ function adjustInnerComments(
 
 export default class CommentsParser extends BaseParser {
   addComment(comment: Comment): void {
-    if (this.filename) comment.loc.filename = this.filename;
+    if (this.filename) comment.loc!.filename = this.filename;
     const { commentsLen } = this.state;
     if (this.comments.length !== commentsLen) {
       this.comments.length = commentsLen;
@@ -123,7 +123,7 @@ export default class CommentsParser extends BaseParser {
       i--;
     }
 
-    const { start: nodeStart } = node;
+    const nodeStart = node.start!;
     // invariant: for all 0 <= j <= i, let c = commentStack[j], c must satisfy c.end < node.end
     for (; i >= 0; i--) {
       const commentWS = commentStack[i];
@@ -178,6 +178,7 @@ export default class CommentsParser extends BaseParser {
             adjustInnerComments(node, node.properties, commentWS);
             break;
           case "CallExpression":
+          case "NewExpression":
           case "OptionalCallExpression":
             adjustInnerComments(node, node.arguments, commentWS);
             break;
@@ -194,6 +195,7 @@ export default class CommentsParser extends BaseParser {
           case "ObjectMethod":
           case "ClassMethod":
           case "ClassPrivateMethod":
+          case "TSTypeParameterDeclaration":
             adjustInnerComments(node, node.params, commentWS);
             break;
           case "ArrayExpression":
@@ -204,12 +206,11 @@ export default class CommentsParser extends BaseParser {
           case "ImportDeclaration":
             adjustInnerComments(node, node.specifiers, commentWS);
             break;
-          case "TSEnumDeclaration":
-            setInnerComments(node, comments);
-
-            break;
           case "TSEnumBody":
             adjustInnerComments(node, node.members, commentWS);
+            break;
+          case "TSInterfaceBody":
+            adjustInnerComments(node, node.body, commentWS);
             break;
           default: {
             setInnerComments(node, comments);

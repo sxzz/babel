@@ -11,7 +11,7 @@ export interface Options {
 }
 
 export default declare((api, { proposal, topicToken }: Options) => {
-  api.assertVersion(REQUIRED_VERSION("^7.0.0-0 || ^8.0.0-0"));
+  api.assertVersion(REQUIRED_VERSION("^7.0.0-0 || ^8.0.0"));
 
   if (typeof proposal !== "string" || !PIPELINE_PROPOSALS.includes(proposal)) {
     const proposalList = PIPELINE_PROPOSALS.map(p => `"${p}"`).join(", ");
@@ -20,7 +20,7 @@ export default declare((api, { proposal, topicToken }: Options) => {
     );
   }
 
-  if (proposal === "hack" && !TOPIC_TOKENS.includes(topicToken)) {
+  if (proposal === "hack" && !TOPIC_TOKENS.includes(topicToken!)) {
     const topicTokenList = TOPIC_TOKENS.map(t => `"${t}"`).join(", ");
     throw new Error(
       `The pipeline plugin in "proposal": "hack" mode also requires a "topicToken" option. "topicToken" must be one of: ${topicTokenList}. See <${documentationURL}>.`,

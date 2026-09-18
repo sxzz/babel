@@ -31,14 +31,13 @@ import type {
   OptionPath,
 } from "./option-assertions.ts";
 import type { UnloadedDescriptor } from "../config-descriptors.ts";
-import type { PluginAPI } from "../helpers/config-api.ts";
 import type { ParserOptions } from "@babel/parser";
 import type { GeneratorOptions } from "@babel/generator";
 import type { VisitWrapper } from "@babel/traverse";
 import ConfigError from "../../errors/config-error.ts";
 import type { PluginObject } from "./plugins.ts";
 import type Plugin from "../plugin.ts";
-import type { PresetAPI } from "../index.ts";
+import type { PresetAPI, PluginAPI } from "../index.ts";
 import type { PresetObject } from "../../index.ts";
 
 const ROOT_VALIDATORS: ValidatorSet = {
@@ -151,6 +150,8 @@ type Assumptions = {
 
 export type AssumptionName = keyof Assumptions;
 
+type EnvSet<T> = Record<string, T>;
+
 export type InputOptions = {
   cwd?: string;
   filename?: string;
@@ -258,38 +259,42 @@ export type CallerMetadata = {
   supportsTopLevelAwait?: boolean;
   supportsExportNamespaceFrom?: boolean;
 };
-export type EnvSet<T> = Record<string, T>;
 export type MatchItem =
   | string
   | RegExp
   | ((
       path: string | undefined,
-      context: { dirname: string; caller: CallerMetadata; envName: string },
+      context: {
+        dirname: string;
+        caller: CallerMetadata | undefined;
+        envName: string;
+      },
     ) => unknown);
 
-export type MaybeDefaultProperty<T> = T | { default: T };
+type MaybeDefaultProperty<T> = T | { default: T };
 
-export type PluginTarget =
+export type PluginTarget<Option = object> =
   | string
   | MaybeDefaultProperty<
-      (api: PluginAPI, options?: object, dirname?: string) => PluginObject
+      (api: PluginAPI, options: Option, dirname: string) => PluginObject
     >;
-export type PluginItem =
+export type PluginItem<Option = object> =
   | ConfigItem<PluginAPI>
-  | PluginTarget
-  | [PluginTarget, object]
-  | [PluginTarget, object, string];
+  | PluginTarget<Option>
+  | [PluginTarget<Option>, Option]
+  | [PluginTarget<Option>, Option, string];
 
-export type PresetTarget =
+export type PresetTarget<Option = object> =
   | string
   | MaybeDefaultProperty<
-      (api: PresetAPI, options?: object, dirname?: string) => PresetObject
+      (api: PresetAPI, options: Option, dirname: string) => PresetObject
     >;
-export type PresetItem =
+
+export type PresetItem<Option = object> =
   | ConfigItem<PresetAPI>
-  | PresetTarget
-  | [PresetTarget, object]
-  | [PresetTarget, object, string];
+  | PresetTarget<Option>
+  | [PresetTarget<Option>, Option]
+  | [PresetTarget<Option>, Option, string];
 
 export type ConfigApplicableTest = MatchItem | MatchItem[];
 
@@ -312,9 +317,7 @@ export type RootInputSourceMapOption = InputSourceMap | boolean;
 export type RootMode = "root" | "upward" | "upward-optional";
 
 export type TargetsListOrObject =
-  | Targets
-  | InputTargets
-  | InputTargets["browsers"];
+  Targets | InputTargets | InputTargets["browsers"];
 
 export type OptionsSource =
   | "arguments"
@@ -389,7 +392,6 @@ export function validate(
     );
   } catch (error) {
     const configError = new ConfigError(error.message, filename);
-    // @ts-expect-error TODO: .code is not defined on ConfigError or Error
     if (error.code) configError.code = error.code;
     throw configError;
   }
@@ -476,10 +478,7 @@ function assertNoDuplicateSourcemap(opts: any): void {
   }
 }
 
-function assertEnvSet(
-  loc: OptionPath,
-  value: unknown,
-): void | EnvSet<InputOptions> {
+function assertEnvSet(loc: OptionPath, value: unknown) {
   if (loc.parent.type === "env") {
     throw new Error(`${msg(loc)} is not allowed inside of another .env block`);
   }
@@ -501,13 +500,10 @@ function assertEnvSet(
       validateNested(envLoc, env);
     }
   }
-  return obj;
+  return obj as EnvSet<InputOptions> | undefined | null;
 }
 
-function assertOverridesList(
-  loc: OptionPath,
-  value: unknown[],
-): undefined | InputOptions[] {
+function assertOverridesList(loc: OptionPath, value: unknown[]) {
   if (loc.parent.type === "env") {
     throw new Error(`${msg(loc)} is not allowed inside an .env block`);
   }
@@ -531,7 +527,7 @@ function assertOverridesList(
       validateNested(overridesLoc, env);
     }
   }
-  return arr;
+  return arr as InputOptions[] | null | undefined;
 }
 
 export function checkNoUnwrappedItemOptionPairs<API>(

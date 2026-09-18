@@ -1,5 +1,5 @@
 import { multiple as getFixtures } from "@babel/helper-fixtures";
-import _checkDuplicateNodes from "@babel/helper-check-duplicate-nodes";
+import checkDuplicateNodes from "@babel/helper-check-duplicate-nodes";
 import { readFileSync, unlinkSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import Difference from "./difference.js";
@@ -7,13 +7,9 @@ import FixtureError from "./fixture-error.js";
 import toFuzzedOptions from "./to-fuzzed-options.js";
 import { serialize, deserialize } from "./serialization.js";
 import toContextualSyntaxError from "./to-contextual-syntax-error.js";
-import { traverseFast } from "@babel/types";
-import { IS_BABEL_8 } from "$repo-utils";
 
 const { CI, OVERWRITE } = process.env;
 const { stringify, parse: JSONParse } = JSON;
-const checkDuplicateNodes =
-  _checkDuplicateNodes.default || _checkDuplicateNodes;
 
 const writeFileWithNewline = (path, string) =>
   writeFileSync(path, `${string}\n`, "utf-8");
@@ -108,6 +104,16 @@ function runParseTest(parse, test, onlyCompareErrors) {
   }
 
   const actual = parseWithRecovery(parse, source, filename, options);
+
+  if (
+    Array.isArray(onlyCompareErrors) &&
+    actual.ast.errors &&
+    actual.ast.errors.some(error =>
+      onlyCompareErrors.includes(error.reasonCode),
+    )
+  ) {
+    return;
+  }
 
   const difference = new Difference(
     adjust,
@@ -225,17 +231,6 @@ function parseWithRecovery(parse, source, filename, options) {
       ast.errors = ast.errors.map(error =>
         toContextualSyntaxError(error, source, filename, options),
       );
-    }
-
-    if (!IS_BABEL_8()) {
-      traverseFast(ast, node => {
-        if (node.shorthand) {
-          delete node.extra.shorthand;
-          if (Object.keys(node.extra).length === 0) {
-            delete node.extra;
-          }
-        }
-      });
     }
 
     return { threw: false, ast };

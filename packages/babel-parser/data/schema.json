@@ -2,11 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "definitions": {
     "DecoratorsPluginOptions": {
-      "properties": {
-        "decoratorsBeforeExport": {
-          "type": "boolean"
-        }
-      },
+      "properties": {},
       "type": "object"
     },
     "DiscardBindingPluginOptions": {
@@ -32,10 +28,11 @@
       },
       "type": "object"
     },
-    "ImportAttributesPluginOptions": {
+    "PartialApplicationPluginOptions": {
       "properties": {
-        "deprecatedAssertSyntax": {
-          "type": "boolean"
+        "version": {
+          "enum": ["2018-07"],
+          "type": "string"
         }
       },
       "type": "object"
@@ -43,16 +40,7 @@
     "PipelineOperatorPluginOptions": {
       "properties": {
         "proposal": {
-          "enum": ["fsharp", "minimal", "smart"],
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "RecordAndTuplePluginOptions": {
-      "properties": {
-        "syntaxType": {
-          "enum": ["bar", "hash"],
+          "enum": ["fsharp", "hack"],
           "type": "string"
         }
       },
@@ -84,9 +72,9 @@
       "type": "boolean"
     },
     "createImportExpressions": {
-      "description": "By default, `import(foo)` is parsed as `CallExpression(Import, [Identifier(foo)])`.\nSet this to true to parse it as an `ImportExpression` node.",
+      "description": "By default, `import(foo)` is parsed as an `ImportExpression`.\nSet this to false to parse it as ``CallExpression(Import, [Identifier(foo)])``.",
       "type": "boolean",
-      "default": false
+      "default": true
     },
     "createParenthesizedExpressions": {
       "description": "By default, the parser adds information about parentheses by setting\n`extra.parenthesized` to `true` as needed.\nWhen this option is `true` the parser creates `ParenthesizedExpression`\nAST nodes instead of using the `extra` property.",
@@ -142,11 +130,11 @@
           {
             "items": [
               {
-                "enum": ["importAttributes"],
+                "enum": ["partialApplication"],
                 "type": "string"
               },
               {
-                "$ref": "#/definitions/ImportAttributesPluginOptions"
+                "$ref": "#/definitions/PartialApplicationPluginOptions"
               }
             ],
             "additionalItems": false,
@@ -160,19 +148,6 @@
               },
               {
                 "$ref": "#/definitions/PipelineOperatorPluginOptions"
-              }
-            ],
-            "additionalItems": false,
-            "type": "array"
-          },
-          {
-            "items": [
-              {
-                "enum": ["recordAndTuple"],
-                "type": "string"
-              },
-              {
-                "$ref": "#/definitions/RecordAndTuplePluginOptions"
               }
             ],
             "additionalItems": false,
@@ -223,10 +198,6 @@
               "flowComments",
               "functionBind",
               "functionSent",
-              "importAssertions",
-              "importAttributes",
-              "importMeta",
-              "importReflection",
               "jsx",
               "moduleBlocks",
               "partialApplication",

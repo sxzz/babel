@@ -6,8 +6,7 @@ import {
   getAssignmentIdentifiers as _getAssignmentIdentifiers,
   getBindingIdentifiers as _getBindingIdentifiers,
   getOuterBindingIdentifiers as _getOuterBindingIdentifiers,
-  numericLiteral,
-  unaryExpression,
+  buildUndefinedNode,
 } from "@babel/types";
 import type * as t from "@babel/types";
 
@@ -41,7 +40,7 @@ function BreakCompletion(path: NodePath): Completion {
   return { type: BREAK_COMPLETION, path };
 }
 
-export function getOpposite(this: NodePath): NodePath | null {
+export function getOpposite(this: NodePath): NodePath<t.Node | null> | null {
   if (this.key === "left") {
     return this.getSibling("right");
   } else if (this.key === "right") {
@@ -56,7 +55,7 @@ function addCompletionRecords(
   context: CompletionContext,
 ): Completion[] {
   if (path) {
-    // @ts-expect-error FIXME: NodePath<null>
+    // @ts-expect-error FIXME: path may be NodePath<null>
     records.push(..._getCompletionRecords(path, context));
   }
   return records;
@@ -117,7 +116,7 @@ function replaceBreakStatementInBreakCompletion(
   completions.forEach(c => {
     if (c.path.isBreakStatement({ label: null })) {
       if (reachable) {
-        c.path.replaceWith(unaryExpression("void", numericLiteral(0)));
+        c.path.replaceWith(buildUndefinedNode());
       } else {
         c.path.remove();
       }
@@ -297,7 +296,10 @@ export function getCompletionRecords(
   return records.map(r => r.path);
 }
 
-export function getSibling(this: NodePath, key: string | number): NodePath {
+export function getSibling(
+  this: NodePath<t.Node | null>,
+  key: string | number,
+): NodePath<t.Node | null> {
   return NodePath.get({
     parentPath: this.parentPath,
     parent: this.parent,
@@ -307,42 +309,53 @@ export function getSibling(this: NodePath, key: string | number): NodePath {
   }).setContext(this.context);
 }
 
-export function getPrevSibling(this: NodePath): NodePath {
+export function getPrevSibling(
+  this: NodePath<t.Node | null>,
+): NodePath<t.Node | null> {
   // @ts-expect-error todo(flow->ts) this.key could be a string
   return this.getSibling(this.key - 1);
 }
 
-export function getNextSibling(this: NodePath): NodePath {
+export function getNextSibling(
+  this: NodePath<t.Node | null>,
+): NodePath<t.Node | null> {
   // @ts-expect-error todo(flow->ts) this.key could be a string
   return this.getSibling(this.key + 1);
 }
 
-export function getAllNextSiblings(this: NodePath): NodePath[] {
-  // @ts-expect-error todo(flow->ts) this.key could be a string
-  let _key: number = this.key;
-  let sibling = this.getSibling(++_key);
-  const siblings = [];
-  while (sibling.node) {
-    siblings.push(sibling);
-    sibling = this.getSibling(++_key);
+export function getAllNextSiblings(
+  this: NodePath<t.Node | null>,
+): NodePath<t.Node | null>[] {
+  // @ts-expect-error the Number.isInteger check ensures that this.key is a number
+  const _key: number = this.key;
+  if (!Number.isInteger(_key)) {
+    return [];
+  }
+  const siblings = [],
+    containerLength = (this.container as t.Node[]).length;
+  for (let key = _key + 1; key < containerLength; key++) {
+    siblings.push(this.getSibling(key));
   }
   return siblings;
 }
 
-export function getAllPrevSiblings(this: NodePath): NodePath[] {
-  // @ts-expect-error todo(flow->ts) this.key could be a string
-  let _key: number = this.key;
-  let sibling = this.getSibling(--_key);
+export function getAllPrevSiblings(
+  this: NodePath<t.Node | null>,
+): NodePath<t.Node | null>[] {
+  // @ts-expect-error the Number.isInteger check ensures that this.key is a number
+  const _key: number = this.key;
+  if (!Number.isInteger(_key)) {
+    return [];
+  }
   const siblings = [];
-  while (sibling.node) {
-    siblings.push(sibling);
-    sibling = this.getSibling(--_key);
+  for (let key = _key - 1; key >= 0; key--) {
+    siblings.push(this.getSibling(key));
   }
   return siblings;
 }
 
 // convert "1" to 1 (string index to number index)
-type MaybeToIndex<T extends string> = T extends `${bigint}` ? number : T;
+type MaybeToIndex<T extends string> = T extends `${number}` ? number : T;
 
 type Pattern<Obj extends string, Prop extends string> = `${Obj}.${Prop}`;
 
@@ -362,9 +375,13 @@ type Trav<
     ? R extends []
       ? Node[K]
       : Node[K] extends t.Node | t.Node[] | null | undefined
-        ? TravD<Node[K] & {}, R> | null
+        ? null | undefined extends Node[K]
+          ? TravD<Node[K] & {}, R> | null
+          : TravD<Node[K] & {}, R>
         : never
-    : never
+    : string extends K
+      ? t.Node | null
+      : null
   : never;
 
 type TravD<
@@ -396,7 +413,11 @@ function get<T extends NodePath<t.Node>, K extends string>(
   this: T,
   key: K,
   context?: true | TraversalContext,
-): T extends any ? ToNodePath<Trav<T["node"], Split<K>>> : never;
+): string extends K
+  ? NodePath<t.Node | null> | NodePath<t.Node | null>[]
+  : T extends any
+    ? ToNodePath<Trav<T["node"], Split<K>>>
+    : never;
 
 function get(
   this: NodePath,
@@ -417,17 +438,18 @@ function get(
     return _getKey.call(this, key, context);
   } else {
     // "foo.bar"
+    // @ts-expect-error this may be NodePath<null>
     return _getPattern.call(this, parts, context);
   }
 }
 
 export { get };
 
-export function _getKey<T extends t.Node>(
+function _getKey<T extends t.Node>(
   this: NodePath<T>,
   key: keyof T & string,
   context?: TraversalContext,
-): NodePath | NodePath[] {
+): NodePath<t.Node | null> | NodePath<t.Node | null>[] {
   const node = this.node as T;
   const container = node[key];
 
@@ -452,12 +474,12 @@ export function _getKey<T extends t.Node>(
   }
 }
 
-export function _getPattern(
+function _getPattern(
   this: NodePath,
   parts: string[],
   context?: TraversalContext,
-): NodePath | NodePath[] {
-  let path: NodePath | NodePath[] = this;
+) {
+  let path: NodePath<t.Node | null> | NodePath<t.Node | null>[] = this;
   for (const part of parts) {
     if (part === ".") {
       // @ts-expect-error todo(flow-ts): Can path be an array here?
@@ -467,6 +489,7 @@ export function _getPattern(
         // @ts-expect-error part may not index path
         path = path[part];
       } else {
+        // @ts-expect-error path may be NodePath<null>
         path = path.get(part, context);
       }
     }
@@ -532,7 +555,7 @@ function getBindingIdentifierPaths(
 // original source - https://github.com/babel/babel/blob/main/packages/babel-types/src/retrievers/getBindingIdentifiers.js
 // path.getBindingIdentifiers returns nodes where the following re-implementation returns paths
 function getBindingIdentifierPaths(
-  this: NodePath,
+  this: NodePath<t.Node | null>,
   duplicates: boolean = false,
   outerOnly: boolean = false,
 ): Record<string, NodePath<t.Identifier> | NodePath<t.Identifier>[]> {
@@ -567,7 +590,6 @@ function getBindingIdentifierPaths(
 
     if (outerOnly) {
       if (id.isFunctionDeclaration()) {
-        // @ts-expect-error FIXME: NodePath<null>
         search.push(id.get("id"));
         continue;
       }
@@ -581,7 +603,6 @@ function getBindingIdentifierPaths(
         const key = keys[i];
         const child = id.get(key);
         if (Array.isArray(child)) {
-          // @ts-expect-error FIXME: NodePath<null>
           search.push(...child);
         } else if (child.node) {
           search.push(child);

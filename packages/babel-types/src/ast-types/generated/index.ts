@@ -30,7 +30,7 @@ export type Comment = CommentBlock | CommentLine;
 export interface SourceLocation {
   start: Position;
   end: Position;
-  filename: string;
+  filename: string | undefined;
   identifierName: string | undefined | null;
 }
 
@@ -58,6 +58,7 @@ export type Node =
   | AssignmentPattern
   | AwaitExpression
   | BigIntLiteral
+  | BigIntLiteralTypeAnnotation
   | BinaryExpression
   | BindExpression
   | BlockStatement
@@ -183,9 +184,6 @@ export type Node =
   | OptionalIndexedAccessType
   | OptionalMemberExpression
   | ParenthesizedExpression
-  | PipelineBareFunction
-  | PipelinePrimaryTopicReference
-  | PipelineTopicExpression
   | Placeholder
   | PrivateName
   | Program
@@ -340,8 +338,15 @@ export interface AssignmentExpression extends BaseNode {
   right: Expression;
 }
 
-export interface BinaryExpression extends BaseNode {
+export interface BinaryExpressionIn extends BaseNode {
   type: "BinaryExpression";
+  right: Expression;
+  operator: "in";
+  left: Expression | PrivateName;
+}
+export interface BinaryExpressionNotIn extends BaseNode {
+  type: "BinaryExpression";
+  right: Expression;
   operator:
     | "+"
     | "-"
@@ -359,16 +364,15 @@ export interface BinaryExpression extends BaseNode {
     | "==="
     | "!="
     | "!=="
-    | "in"
     | "instanceof"
     | ">"
     | "<"
     | ">="
     | "<="
     | "|>";
-  left: Expression | PrivateName;
-  right: Expression;
+  left: Expression;
 }
+export type BinaryExpression = BinaryExpressionIn | BinaryExpressionNotIn;
 
 export interface InterpreterDirective extends BaseNode {
   type: "InterpreterDirective";
@@ -398,12 +402,10 @@ export interface BreakStatement extends BaseNode {
 
 export interface CallExpression extends BaseNode {
   type: "CallExpression";
-  callee: Expression | Super | V8IntrinsicIdentifier;
+  callee: Expression | Super | Import | V8IntrinsicIdentifier;
   arguments: (Expression | SpreadElement | ArgumentPlaceholder)[];
   typeArguments?:
-    | TypeParameterInstantiation
-    | TSTypeParameterInstantiation
-    | null;
+    TypeParameterInstantiation | TSTypeParameterInstantiation | null;
 }
 
 export interface CatchClause extends BaseNode {
@@ -482,7 +484,7 @@ export interface FunctionDeclaration extends BaseNode {
   generator: boolean;
   async: boolean;
   declare?: boolean | null;
-  predicate?: DeclaredPredicate | InferredPredicate | null;
+  predicate?: FlowPredicate | null;
   returnType?: TypeAnnotation | TSTypeAnnotation | null;
   typeParameters?: TypeParameterDeclaration | TSTypeParameterDeclaration | null;
 }
@@ -494,7 +496,7 @@ export interface FunctionExpression extends BaseNode {
   body: BlockStatement;
   generator: boolean;
   async: boolean;
-  predicate?: DeclaredPredicate | InferredPredicate | null;
+  predicate?: FlowPredicate | null;
   returnType?: TypeAnnotation | TSTypeAnnotation | null;
   typeParameters?: TypeParameterDeclaration | TSTypeParameterDeclaration | null;
 }
@@ -582,17 +584,14 @@ export interface MemberExpressionNonComputed extends BaseNode {
   property: Identifier | PrivateName;
 }
 export type MemberExpression =
-  | MemberExpressionComputed
-  | MemberExpressionNonComputed;
+  MemberExpressionComputed | MemberExpressionNonComputed;
 
 export interface NewExpression extends BaseNode {
   type: "NewExpression";
-  callee: Expression | Super | V8IntrinsicIdentifier;
+  callee: Expression | V8IntrinsicIdentifier;
   arguments: (Expression | SpreadElement | ArgumentPlaceholder)[];
   typeArguments?:
-    | TypeParameterInstantiation
-    | TSTypeParameterInstantiation
-    | null;
+    TypeParameterInstantiation | TSTypeParameterInstantiation | null;
 }
 
 export interface Program extends BaseNode {
@@ -651,11 +650,7 @@ export interface ObjectPropertyNonComputed extends BaseNode {
   decorators?: Decorator[] | null;
   computed: false;
   key:
-    | Identifier
-    | StringLiteral
-    | NumericLiteral
-    | BigIntLiteral
-    | PrivateName;
+    Identifier | StringLiteral | NumericLiteral | BigIntLiteral | PrivateName;
 }
 export type ObjectProperty = ObjectPropertyComputed | ObjectPropertyNonComputed;
 
@@ -807,9 +802,9 @@ export interface ArrowFunctionExpression extends BaseNode {
   params: FunctionParameter[];
   body: BlockStatement | Expression;
   async: boolean;
-  expression: boolean;
-  generator?: boolean;
-  predicate?: DeclaredPredicate | InferredPredicate | null;
+  expression?: boolean | null;
+  generator?: boolean | null;
+  predicate?: FlowPredicate | null;
   returnType?: TypeAnnotation | TSTypeAnnotation | null;
   typeParameters?: TypeParameterDeclaration | TSTypeParameterDeclaration | null;
 }
@@ -837,9 +832,7 @@ export interface ClassExpression extends BaseNode {
   implements?: (TSClassImplements | ClassImplements)[] | null;
   mixins?: InterfaceExtends | null;
   superTypeArguments?:
-    | TypeParameterInstantiation
-    | TSTypeParameterInstantiation
-    | null;
+    TypeParameterInstantiation | TSTypeParameterInstantiation | null;
   typeParameters?: TypeParameterDeclaration | TSTypeParameterDeclaration | null;
 }
 
@@ -854,16 +847,13 @@ export interface ClassDeclaration extends BaseNode {
   implements?: (TSClassImplements | ClassImplements)[] | null;
   mixins?: InterfaceExtends | null;
   superTypeArguments?:
-    | TypeParameterInstantiation
-    | TSTypeParameterInstantiation
-    | null;
+    TypeParameterInstantiation | TSTypeParameterInstantiation | null;
   typeParameters?: TypeParameterDeclaration | TSTypeParameterDeclaration | null;
 }
 
 export interface ExportAllDeclaration extends BaseNode {
   type: "ExportAllDeclaration";
   source: StringLiteral;
-  assertions: any;
   attributes?: ImportAttribute[] | null;
   exportKind?: "type" | "value" | null;
 }
@@ -871,20 +861,34 @@ export interface ExportAllDeclaration extends BaseNode {
 export interface ExportDefaultDeclaration extends BaseNode {
   type: "ExportDefaultDeclaration";
   declaration:
-    | TSDeclareFunction
     | FunctionDeclaration
     | ClassDeclaration
-    | Expression;
+    | Expression
+    | TSDeclareFunction
+    | TSInterfaceDeclaration
+    | EnumDeclaration;
   exportKind?: "value" | null;
 }
 
 export interface ExportNamedDeclaration extends BaseNode {
   type: "ExportNamedDeclaration";
-  declaration?: Declaration | null;
+  declaration?:
+    | VariableDeclaration
+    | FunctionDeclaration
+    | ClassDeclaration
+    | TSDeclareFunction
+    | TSEnumDeclaration
+    | TSImportEqualsDeclaration
+    | TSInterfaceDeclaration
+    | TSModuleDeclaration
+    | TSTypeAliasDeclaration
+    | EnumDeclaration
+    | InterfaceDeclaration
+    | OpaqueType
+    | TypeAlias
+    | null;
   specifiers: (
-    | ExportSpecifier
-    | ExportDefaultSpecifier
-    | ExportNamespaceSpecifier
+    ExportSpecifier | ExportDefaultSpecifier | ExportNamespaceSpecifier
   )[];
   source?: StringLiteral | null;
   attributes?: ImportAttribute[] | null;
@@ -893,7 +897,7 @@ export interface ExportNamedDeclaration extends BaseNode {
 
 export interface ExportSpecifier extends BaseNode {
   type: "ExportSpecifier";
-  local: Identifier;
+  local: Identifier | StringLiteral;
   exported: Identifier | StringLiteral;
   exportKind?: "type" | "value" | null;
 }
@@ -918,9 +922,7 @@ export interface ForOfStatement extends BaseNode {
 export interface ImportDeclaration extends BaseNode {
   type: "ImportDeclaration";
   specifiers: (
-    | ImportSpecifier
-    | ImportDefaultSpecifier
-    | ImportNamespaceSpecifier
+    ImportSpecifier | ImportDefaultSpecifier | ImportNamespaceSpecifier
   )[];
   source: StringLiteral;
   attributes?: ImportAttribute[] | null;
@@ -946,13 +948,6 @@ export interface ImportSpecifier extends BaseNode {
   importKind?: "type" | "typeof" | "value" | null;
 }
 
-export interface ImportExpression extends BaseNode {
-  type: "ImportExpression";
-  source: Expression;
-  options?: Expression | null;
-  phase?: "source" | "defer" | null;
-}
-
 export interface MetaProperty extends BaseNode {
   type: "MetaProperty";
   meta: Identifier;
@@ -972,7 +967,7 @@ export interface ClassMethodComputed extends BaseNode {
   accessibility?: "public" | "private" | "protected" | null;
   decorators?: Decorator[] | null;
   optional?: boolean | null;
-  override?: boolean;
+  override?: boolean | null;
   returnType?: TypeAnnotation | TSTypeAnnotation | null;
   typeParameters?: TypeParameterDeclaration | TSTypeParameterDeclaration | null;
   computed: true;
@@ -991,7 +986,7 @@ export interface ClassMethodNonComputed extends BaseNode {
   accessibility?: "public" | "private" | "protected" | null;
   decorators?: Decorator[] | null;
   optional?: boolean | null;
-  override?: boolean;
+  override?: boolean | null;
   returnType?: TypeAnnotation | TSTypeAnnotation | null;
   typeParameters?: TypeParameterDeclaration | TSTypeParameterDeclaration | null;
   computed: false;
@@ -1029,14 +1024,12 @@ export interface TaggedTemplateExpression extends BaseNode {
   tag: Expression;
   quasi: TemplateLiteral;
   typeArguments?:
-    | TypeParameterInstantiation
-    | TSTypeParameterInstantiation
-    | null;
+    TypeParameterInstantiation | TSTypeParameterInstantiation | null;
 }
 
 export interface TemplateElement extends BaseNode {
   type: "TemplateElement";
-  value: { raw: string; cooked?: string };
+  value: { raw: string; cooked?: string | null };
   tail: boolean;
 }
 
@@ -1057,6 +1050,13 @@ export interface AwaitExpression extends BaseNode {
   argument: Expression;
 }
 
+export interface ImportExpression extends BaseNode {
+  type: "ImportExpression";
+  source: Expression;
+  options?: Expression | null;
+  phase?: "source" | "defer" | null;
+}
+
 export interface Import extends BaseNode {
   type: "Import";
 }
@@ -1068,16 +1068,25 @@ export interface BigIntLiteral extends BaseNode {
 
 export interface ExportNamespaceSpecifier extends BaseNode {
   type: "ExportNamespaceSpecifier";
-  exported: Identifier;
+  exported: Identifier | StringLiteral;
 }
 
-export interface OptionalMemberExpression extends BaseNode {
+export interface OptionalMemberExpressionComputed extends BaseNode {
   type: "OptionalMemberExpression";
   object: Expression;
-  property: Expression | Identifier;
-  computed: boolean;
   optional: boolean;
+  computed: true;
+  property: Expression;
 }
+export interface OptionalMemberExpressionNonComputed extends BaseNode {
+  type: "OptionalMemberExpression";
+  object: Expression;
+  optional: boolean;
+  computed: false;
+  property: Identifier | PrivateName;
+}
+export type OptionalMemberExpression =
+  OptionalMemberExpressionComputed | OptionalMemberExpressionNonComputed;
 
 export interface OptionalCallExpression extends BaseNode {
   type: "OptionalCallExpression";
@@ -1085,9 +1094,7 @@ export interface OptionalCallExpression extends BaseNode {
   arguments: (Expression | SpreadElement | ArgumentPlaceholder)[];
   optional: boolean;
   typeArguments?:
-    | TypeParameterInstantiation
-    | TSTypeParameterInstantiation
-    | null;
+    TypeParameterInstantiation | TSTypeParameterInstantiation | null;
 }
 
 export interface ClassPropertyComputed extends BaseNode {
@@ -1101,7 +1108,7 @@ export interface ClassPropertyComputed extends BaseNode {
   declare?: boolean | null;
   definite?: boolean | null;
   optional?: boolean | null;
-  override?: boolean;
+  override?: boolean | null;
   readonly?: boolean | null;
   variance?: Variance | null;
   computed: true;
@@ -1118,56 +1125,13 @@ export interface ClassPropertyNonComputed extends BaseNode {
   declare?: boolean | null;
   definite?: boolean | null;
   optional?: boolean | null;
-  override?: boolean;
+  override?: boolean | null;
   readonly?: boolean | null;
   variance?: Variance | null;
   computed: false;
   key: Identifier | StringLiteral | NumericLiteral | BigIntLiteral;
 }
 export type ClassProperty = ClassPropertyComputed | ClassPropertyNonComputed;
-
-export interface ClassAccessorPropertyComputed extends BaseNode {
-  type: "ClassAccessorProperty";
-  value?: Expression | null;
-  typeAnnotation?: TypeAnnotation | TSTypeAnnotation | null;
-  decorators?: Decorator[] | null;
-  static: boolean;
-  abstract?: boolean | null;
-  accessibility?: "public" | "private" | "protected" | null;
-  declare?: boolean | null;
-  definite?: boolean | null;
-  optional?: boolean | null;
-  override?: boolean;
-  readonly?: boolean | null;
-  variance?: Variance | null;
-  computed: true;
-  key: Expression;
-}
-export interface ClassAccessorPropertyNonComputed extends BaseNode {
-  type: "ClassAccessorProperty";
-  value?: Expression | null;
-  typeAnnotation?: TypeAnnotation | TSTypeAnnotation | null;
-  decorators?: Decorator[] | null;
-  static: boolean;
-  abstract?: boolean | null;
-  accessibility?: "public" | "private" | "protected" | null;
-  declare?: boolean | null;
-  definite?: boolean | null;
-  optional?: boolean | null;
-  override?: boolean;
-  readonly?: boolean | null;
-  variance?: Variance | null;
-  computed: false;
-  key:
-    | Identifier
-    | StringLiteral
-    | NumericLiteral
-    | BigIntLiteral
-    | PrivateName;
-}
-export type ClassAccessorProperty =
-  | ClassAccessorPropertyComputed
-  | ClassAccessorPropertyNonComputed;
 
 export interface ClassPrivateProperty extends BaseNode {
   type: "ClassPrivateProperty";
@@ -1192,12 +1156,12 @@ export interface ClassPrivateMethod extends BaseNode {
   abstract?: boolean | null;
   access?: "public" | "private" | "protected" | null;
   accessibility?: "public" | "private" | "protected" | null;
-  async?: boolean;
-  computed?: boolean;
+  async: boolean;
+  computed: boolean;
   decorators?: Decorator[] | null;
-  generator?: boolean;
+  generator: boolean;
   optional?: boolean | null;
-  override?: boolean;
+  override?: boolean | null;
   returnType?: TypeAnnotation | TSTypeAnnotation | null;
   typeParameters?: TypeParameterDeclaration | TSTypeParameterDeclaration | null;
 }
@@ -1259,7 +1223,7 @@ export interface DeclareClass extends BaseNode {
 export interface DeclareFunction extends BaseNode {
   type: "DeclareFunction";
   id: Identifier;
-  predicate?: DeclaredPredicate | null;
+  predicate?: FlowPredicate | null;
 }
 
 export interface DeclareInterface extends BaseNode {
@@ -1320,7 +1284,7 @@ export interface DeclareExportAllDeclaration extends BaseNode {
 
 export interface DeclaredPredicate extends BaseNode {
   type: "DeclaredPredicate";
-  value: Flow;
+  value: Expression;
 }
 
 export interface ExistsTypeAnnotation extends BaseNode {
@@ -1396,6 +1360,11 @@ export interface NumberLiteralTypeAnnotation extends BaseNode {
   value: number;
 }
 
+export interface BigIntLiteralTypeAnnotation extends BaseNode {
+  type: "BigIntLiteralTypeAnnotation";
+  value: bigint;
+}
+
 export interface NumberTypeAnnotation extends BaseNode {
   type: "NumberTypeAnnotation";
 }
@@ -1436,7 +1405,7 @@ export interface ObjectTypeIndexer extends BaseNode {
 
 export interface ObjectTypeProperty extends BaseNode {
   type: "ObjectTypeProperty";
-  key: Identifier | StringLiteral;
+  key: Identifier | StringLiteral | NumericLiteral;
   value: FlowType;
   variance?: Variance | null;
   kind: "init" | "get" | "set";
@@ -1489,7 +1458,7 @@ export interface TupleTypeAnnotation extends BaseNode {
 
 export interface TypeofTypeAnnotation extends BaseNode {
   type: "TypeofTypeAnnotation";
-  argument: FlowType;
+  argument: FlowType | Identifier;
 }
 
 export interface TypeAlias extends BaseNode {
@@ -1501,7 +1470,7 @@ export interface TypeAlias extends BaseNode {
 
 export interface TypeAnnotation extends BaseNode {
   type: "TypeAnnotation";
-  typeAnnotation: FlowType;
+  typeAnnotation: FlowType | Identifier;
 }
 
 export interface TypeCastExpression extends BaseNode {
@@ -1512,10 +1481,10 @@ export interface TypeCastExpression extends BaseNode {
 
 export interface TypeParameter extends BaseNode {
   type: "TypeParameter";
+  name: string;
   bound?: TypeAnnotation | null;
   default?: FlowType | null;
   variance?: Variance | null;
-  name: string;
 }
 
 export interface TypeParameterDeclaration extends BaseNode {
@@ -1615,11 +1584,7 @@ export interface JSXAttribute extends BaseNode {
   type: "JSXAttribute";
   name: JSXIdentifier | JSXNamespacedName;
   value?:
-    | JSXElement
-    | JSXFragment
-    | StringLiteral
-    | JSXExpressionContainer
-    | null;
+    JSXElement | JSXFragment | StringLiteral | JSXExpressionContainer | null;
 }
 
 export interface JSXClosingElement extends BaseNode {
@@ -1632,11 +1597,7 @@ export interface JSXElement extends BaseNode {
   openingElement: JSXOpeningElement;
   closingElement?: JSXClosingElement | null;
   children: (
-    | JSXText
-    | JSXExpressionContainer
-    | JSXSpreadChild
-    | JSXElement
-    | JSXFragment
+    JSXText | JSXExpressionContainer | JSXSpreadChild | JSXElement | JSXFragment
   )[];
 }
 
@@ -1677,9 +1638,7 @@ export interface JSXOpeningElement extends BaseNode {
   attributes: (JSXAttribute | JSXSpreadAttribute)[];
   selfClosing: boolean;
   typeArguments?:
-    | TypeParameterInstantiation
-    | TSTypeParameterInstantiation
-    | null;
+    TypeParameterInstantiation | TSTypeParameterInstantiation | null;
 }
 
 export interface JSXSpreadAttribute extends BaseNode {
@@ -1697,11 +1656,7 @@ export interface JSXFragment extends BaseNode {
   openingFragment: JSXOpeningFragment;
   closingFragment: JSXClosingFragment;
   children: (
-    | JSXText
-    | JSXExpressionContainer
-    | JSXSpreadChild
-    | JSXElement
-    | JSXFragment
+    JSXText | JSXExpressionContainer | JSXSpreadChild | JSXElement | JSXFragment
   )[];
 }
 
@@ -1741,9 +1696,47 @@ export interface ArgumentPlaceholder extends BaseNode {
 
 export interface BindExpression extends BaseNode {
   type: "BindExpression";
-  object: Expression;
+  object: null | Expression;
   callee: Expression;
 }
+
+export interface ClassAccessorPropertyComputed extends BaseNode {
+  type: "ClassAccessorProperty";
+  value?: Expression | null;
+  typeAnnotation?: TypeAnnotation | TSTypeAnnotation | null;
+  decorators?: Decorator[] | null;
+  static: boolean;
+  abstract?: boolean | null;
+  accessibility?: "public" | "private" | "protected" | null;
+  declare?: boolean | null;
+  definite?: boolean | null;
+  optional?: boolean | null;
+  override?: boolean | null;
+  readonly?: boolean | null;
+  variance?: Variance | null;
+  computed: true;
+  key: Expression;
+}
+export interface ClassAccessorPropertyNonComputed extends BaseNode {
+  type: "ClassAccessorProperty";
+  value?: Expression | null;
+  typeAnnotation?: TypeAnnotation | TSTypeAnnotation | null;
+  decorators?: Decorator[] | null;
+  static: boolean;
+  abstract?: boolean | null;
+  accessibility?: "public" | "private" | "protected" | null;
+  declare?: boolean | null;
+  definite?: boolean | null;
+  optional?: boolean | null;
+  override?: boolean | null;
+  readonly?: boolean | null;
+  variance?: Variance | null;
+  computed: false;
+  key:
+    Identifier | StringLiteral | NumericLiteral | BigIntLiteral | PrivateName;
+}
+export type ClassAccessorProperty =
+  ClassAccessorPropertyComputed | ClassAccessorPropertyNonComputed;
 
 export interface Decorator extends BaseNode {
   type: "Decorator";
@@ -1770,20 +1763,6 @@ export interface TopicReference extends BaseNode {
   type: "TopicReference";
 }
 
-export interface PipelineTopicExpression extends BaseNode {
-  type: "PipelineTopicExpression";
-  expression: Expression;
-}
-
-export interface PipelineBareFunction extends BaseNode {
-  type: "PipelineBareFunction";
-  callee: Expression;
-}
-
-export interface PipelinePrimaryTopicReference extends BaseNode {
-  type: "PipelinePrimaryTopicReference";
-}
-
 export interface VoidPattern extends BaseNode {
   type: "VoidPattern";
 }
@@ -1803,50 +1782,48 @@ export interface TSDeclareFunction extends BaseNode {
   typeParameters?: TSTypeParameterDeclaration | null;
   params: FunctionParameter[];
   returnType?: TSTypeAnnotation | null;
-  async?: boolean;
+  async: boolean;
   declare?: boolean | null;
-  generator?: boolean;
+  generator: boolean;
 }
 
 export interface TSDeclareMethodComputed extends BaseNode {
   type: "TSDeclareMethod";
-  decorators?: Decorator[] | null;
   typeParameters?: TSTypeParameterDeclaration | null;
   params: (FunctionParameter | TSParameterProperty)[];
   returnType?: TSTypeAnnotation | null;
   abstract?: boolean | null;
   access?: "public" | "private" | "protected" | null;
   accessibility?: "public" | "private" | "protected" | null;
-  async?: boolean;
-  generator?: boolean;
-  kind?: "get" | "set" | "method" | "constructor";
+  async: boolean;
+  generator: boolean;
+  kind: "get" | "set" | "method" | "constructor";
   optional?: boolean | null;
-  override?: boolean;
-  static?: boolean;
+  override?: boolean | null;
+  static: boolean;
   computed: true;
   key: Expression;
 }
 export interface TSDeclareMethodNonComputed extends BaseNode {
   type: "TSDeclareMethod";
-  decorators?: Decorator[] | null;
   typeParameters?: TSTypeParameterDeclaration | null;
   params: (FunctionParameter | TSParameterProperty)[];
   returnType?: TSTypeAnnotation | null;
   abstract?: boolean | null;
   access?: "public" | "private" | "protected" | null;
   accessibility?: "public" | "private" | "protected" | null;
-  async?: boolean;
-  generator?: boolean;
-  kind?: "get" | "set" | "method" | "constructor";
+  async: boolean;
+  generator: boolean;
+  kind: "get" | "set" | "method" | "constructor";
   optional?: boolean | null;
-  override?: boolean;
-  static?: boolean;
+  override?: boolean | null;
+  static: boolean;
   computed: false;
-  key: Identifier | StringLiteral | NumericLiteral | BigIntLiteral;
+  key:
+    Identifier | StringLiteral | NumericLiteral | BigIntLiteral | PrivateName;
 }
 export type TSDeclareMethod =
-  | TSDeclareMethodComputed
-  | TSDeclareMethodNonComputed;
+  TSDeclareMethodComputed | TSDeclareMethodNonComputed;
 
 export interface TSQualifiedName extends BaseNode {
   type: "TSQualifiedName";
@@ -1872,7 +1849,7 @@ export interface TSPropertySignature extends BaseNode {
   type: "TSPropertySignature";
   key: Expression;
   typeAnnotation?: TSTypeAnnotation | null;
-  computed?: boolean;
+  computed: boolean;
   kind?: "get" | "set" | null;
   optional?: boolean | null;
   readonly?: boolean | null;
@@ -1884,7 +1861,7 @@ export interface TSMethodSignature extends BaseNode {
   typeParameters?: TSTypeParameterDeclaration | null;
   params: (ArrayPattern | Identifier | ObjectPattern | RestElement)[];
   returnType?: TSTypeAnnotation | null;
-  computed?: boolean;
+  computed: boolean;
   kind: "method" | "get" | "set";
   optional?: boolean | null;
 }
@@ -2102,7 +2079,7 @@ export interface TSInterfaceDeclaration extends BaseNode {
   type: "TSInterfaceDeclaration";
   id: Identifier;
   typeParameters?: TSTypeParameterDeclaration | null;
-  extends?: TSClassImplements[] | null;
+  extends?: TSInterfaceHeritage[] | null;
   body: TSInterfaceBody;
   declare?: boolean | null;
 }
@@ -2168,7 +2145,7 @@ export interface TSModuleDeclaration extends BaseNode {
   id: TSEntityName | StringLiteral;
   body: TSModuleBlock;
   declare?: boolean | null;
-  kind: "global" | "module" | "namespace";
+  kind: "global" | "namespace" | "module";
 }
 
 export interface TSModuleBlock extends BaseNode {
@@ -2303,7 +2280,6 @@ export type Standardized =
   | ImportDefaultSpecifier
   | ImportNamespaceSpecifier
   | ImportSpecifier
-  | ImportExpression
   | MetaProperty
   | ClassMethod
   | ObjectPattern
@@ -2314,13 +2290,13 @@ export type Standardized =
   | TemplateLiteral
   | YieldExpression
   | AwaitExpression
+  | ImportExpression
   | Import
   | BigIntLiteral
   | ExportNamespaceSpecifier
   | OptionalMemberExpression
   | OptionalCallExpression
   | ClassProperty
-  | ClassAccessorProperty
   | ClassPrivateProperty
   | ClassPrivateMethod
   | PrivateName
@@ -2350,13 +2326,12 @@ export type Expression =
   | UpdateExpression
   | ArrowFunctionExpression
   | ClassExpression
-  | ImportExpression
   | MetaProperty
   | TaggedTemplateExpression
   | TemplateLiteral
   | YieldExpression
   | AwaitExpression
-  | Import
+  | ImportExpression
   | BigIntLiteral
   | OptionalMemberExpression
   | OptionalCallExpression
@@ -2367,9 +2342,6 @@ export type Expression =
   | DoExpression
   | ModuleExpression
   | TopicReference
-  | PipelineTopicExpression
-  | PipelineBareFunction
-  | PipelinePrimaryTopicReference
   | TSInstantiationExpression
   | TSAsExpression
   | TSSatisfiesExpression
@@ -2471,10 +2443,7 @@ export type Terminatorless =
   | YieldExpression
   | AwaitExpression;
 export type CompletionStatement =
-  | BreakStatement
-  | ContinueStatement
-  | ReturnStatement
-  | ThrowStatement;
+  BreakStatement | ContinueStatement | ReturnStatement | ThrowStatement;
 export type Conditional = ConditionalExpression | IfStatement;
 export type Loop =
   | DoWhileStatement
@@ -2484,9 +2453,7 @@ export type Loop =
   | ForOfStatement;
 export type While = DoWhileStatement | WhileStatement;
 export type ExpressionWrapper =
-  | ExpressionStatement
-  | ParenthesizedExpression
-  | TypeCastExpression;
+  ExpressionStatement | ParenthesizedExpression | TypeCastExpression;
 export type For = ForInStatement | ForStatement | ForOfStatement;
 export type ForXStatement = ForInStatement | ForOfStatement;
 export type Function =
@@ -2607,16 +2574,10 @@ export type UserWhitespacable =
 export type Method = ObjectMethod | ClassMethod | ClassPrivateMethod;
 export type ObjectMember = ObjectMethod | ObjectProperty;
 export type Property =
-  | ObjectProperty
-  | ClassProperty
-  | ClassAccessorProperty
-  | ClassPrivateProperty;
+  ObjectProperty | ClassProperty | ClassPrivateProperty | ClassAccessorProperty;
 export type UnaryLike = UnaryExpression | SpreadElement;
 export type Pattern =
-  | AssignmentPattern
-  | ArrayPattern
-  | ObjectPattern
-  | VoidPattern;
+  AssignmentPattern | ArrayPattern | ObjectPattern | VoidPattern;
 export type Class = ClassExpression | ClassDeclaration;
 export type ImportOrExportDeclaration =
   | ExportAllDeclaration
@@ -2624,9 +2585,7 @@ export type ImportOrExportDeclaration =
   | ExportNamedDeclaration
   | ImportDeclaration;
 export type ExportDeclaration =
-  | ExportAllDeclaration
-  | ExportDefaultDeclaration
-  | ExportNamedDeclaration;
+  ExportAllDeclaration | ExportDefaultDeclaration | ExportNamedDeclaration;
 export type ModuleSpecifier =
   | ExportSpecifier
   | ImportDefaultSpecifier
@@ -2634,7 +2593,6 @@ export type ModuleSpecifier =
   | ImportSpecifier
   | ExportNamespaceSpecifier
   | ExportDefaultSpecifier;
-export type Accessor = ClassAccessorProperty;
 export type Private = ClassPrivateProperty | ClassPrivateMethod | PrivateName;
 export type Flow =
   | AnyTypeAnnotation
@@ -2667,6 +2625,7 @@ export type Flow =
   | EmptyTypeAnnotation
   | NullableTypeAnnotation
   | NumberLiteralTypeAnnotation
+  | BigIntLiteralTypeAnnotation
   | NumberTypeAnnotation
   | ObjectTypeAnnotation
   | ObjectTypeInternalSlot
@@ -2717,6 +2676,7 @@ export type FlowType =
   | EmptyTypeAnnotation
   | NullableTypeAnnotation
   | NumberLiteralTypeAnnotation
+  | BigIntLiteralTypeAnnotation
   | NumberTypeAnnotation
   | ObjectTypeAnnotation
   | StringLiteralTypeAnnotation
@@ -2756,15 +2716,9 @@ export type FlowDeclaration =
   | TypeAlias;
 export type FlowPredicate = DeclaredPredicate | InferredPredicate;
 export type EnumBody =
-  | EnumBooleanBody
-  | EnumNumberBody
-  | EnumStringBody
-  | EnumSymbolBody;
+  EnumBooleanBody | EnumNumberBody | EnumStringBody | EnumSymbolBody;
 export type EnumMember =
-  | EnumBooleanMember
-  | EnumNumberMember
-  | EnumStringMember
-  | EnumDefaultedMember;
+  EnumBooleanMember | EnumNumberMember | EnumStringMember | EnumDefaultedMember;
 export type JSX =
   | JSXAttribute
   | JSXClosingElement
@@ -2782,6 +2736,7 @@ export type JSX =
   | JSXOpeningFragment
   | JSXClosingFragment;
 export type Miscellaneous = Placeholder | V8IntrinsicIdentifier;
+export type Accessor = ClassAccessorProperty;
 export type TypeScript =
   | TSParameterProperty
   | TSDeclareFunction
@@ -2882,6 +2837,7 @@ export type TSType =
   | TSTupleType
   | TSOptionalType
   | TSRestType
+  | TSNamedTupleMember
   | TSUnionType
   | TSIntersectionType
   | TSConditionalType
@@ -2954,7 +2910,6 @@ export interface Aliases {
   ImportOrExportDeclaration: ImportOrExportDeclaration;
   ExportDeclaration: ExportDeclaration;
   ModuleSpecifier: ModuleSpecifier;
-  Accessor: Accessor;
   Private: Private;
   Flow: Flow;
   FlowType: FlowType;
@@ -2965,6 +2920,7 @@ export interface Aliases {
   EnumMember: EnumMember;
   JSX: JSX;
   Miscellaneous: Miscellaneous;
+  Accessor: Accessor;
   TypeScript: TypeScript;
   TSTypeElement: TSTypeElement;
   TSType: TSType;
@@ -2973,10 +2929,7 @@ export interface Aliases {
 }
 
 export type DeprecatedAliases =
-  | NumberLiteral
-  | RegexLiteral
-  | RestProperty
-  | SpreadProperty;
+  NumberLiteral | RegexLiteral | RestProperty | SpreadProperty;
 
 export interface ParentMaps {
   AnyTypeAnnotation:
@@ -2984,7 +2937,6 @@ export interface ParentMaps {
     | DeclareExportDeclaration
     | DeclareOpaqueType
     | DeclareTypeAlias
-    | DeclaredPredicate
     | FunctionTypeAnnotation
     | FunctionTypeParam
     | IndexedAccessType
@@ -3021,6 +2973,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -3041,8 +2994,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -3097,7 +3048,6 @@ export interface ParentMaps {
     | DeclareExportDeclaration
     | DeclareOpaqueType
     | DeclareTypeAlias
-    | DeclaredPredicate
     | FunctionTypeAnnotation
     | FunctionTypeParam
     | IndexedAccessType
@@ -3133,6 +3083,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -3153,8 +3104,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -3197,6 +3146,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -3217,8 +3167,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -3273,6 +3221,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -3293,8 +3242,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -3337,6 +3284,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -3357,8 +3305,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -3386,6 +3332,30 @@ export interface ParentMaps {
     | WhileStatement
     | WithStatement
     | YieldExpression;
+  BigIntLiteralTypeAnnotation:
+    | ArrayTypeAnnotation
+    | DeclareExportDeclaration
+    | DeclareOpaqueType
+    | DeclareTypeAlias
+    | FunctionTypeAnnotation
+    | FunctionTypeParam
+    | IndexedAccessType
+    | IntersectionTypeAnnotation
+    | NullableTypeAnnotation
+    | ObjectTypeCallProperty
+    | ObjectTypeIndexer
+    | ObjectTypeInternalSlot
+    | ObjectTypeProperty
+    | ObjectTypeSpreadProperty
+    | OpaqueType
+    | OptionalIndexedAccessType
+    | TupleTypeAnnotation
+    | TypeAlias
+    | TypeAnnotation
+    | TypeParameter
+    | TypeParameterInstantiation
+    | TypeofTypeAnnotation
+    | UnionTypeAnnotation;
   BinaryExpression:
     | ArrayExpression
     | ArrowFunctionExpression
@@ -3402,6 +3372,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -3422,8 +3393,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -3466,6 +3435,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -3486,8 +3456,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -3554,6 +3522,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | EnumBooleanMember
@@ -3575,8 +3544,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -3609,7 +3576,6 @@ export interface ParentMaps {
     | DeclareExportDeclaration
     | DeclareOpaqueType
     | DeclareTypeAlias
-    | DeclaredPredicate
     | FunctionTypeAnnotation
     | FunctionTypeParam
     | IndexedAccessType
@@ -3634,7 +3600,6 @@ export interface ParentMaps {
     | DeclareExportDeclaration
     | DeclareOpaqueType
     | DeclareTypeAlias
-    | DeclaredPredicate
     | FunctionTypeAnnotation
     | FunctionTypeParam
     | IndexedAccessType
@@ -3684,6 +3649,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -3704,8 +3670,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -3767,6 +3731,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -3787,8 +3752,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -3819,8 +3782,7 @@ export interface ParentMaps {
     | ClassDeclaration
     | ClassExpression
     | DeclareClass
-    | DeclareExportDeclaration
-    | DeclaredPredicate;
+    | DeclareExportDeclaration;
   ClassMethod: ClassBody;
   ClassPrivateMethod: ClassBody;
   ClassPrivateProperty: ClassBody;
@@ -3843,6 +3805,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -3863,8 +3826,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -3922,9 +3883,7 @@ export interface ParentMaps {
   DeclareClass:
     | BlockStatement
     | DeclareExportDeclaration
-    | DeclaredPredicate
     | DoWhileStatement
-    | ExportNamedDeclaration
     | ForInStatement
     | ForOfStatement
     | ForStatement
@@ -3939,9 +3898,7 @@ export interface ParentMaps {
   DeclareExportAllDeclaration:
     | BlockStatement
     | DeclareExportDeclaration
-    | DeclaredPredicate
     | DoWhileStatement
-    | ExportNamedDeclaration
     | ForInStatement
     | ForOfStatement
     | ForStatement
@@ -3956,9 +3913,7 @@ export interface ParentMaps {
   DeclareExportDeclaration:
     | BlockStatement
     | DeclareExportDeclaration
-    | DeclaredPredicate
     | DoWhileStatement
-    | ExportNamedDeclaration
     | ForInStatement
     | ForOfStatement
     | ForStatement
@@ -3973,9 +3928,7 @@ export interface ParentMaps {
   DeclareFunction:
     | BlockStatement
     | DeclareExportDeclaration
-    | DeclaredPredicate
     | DoWhileStatement
-    | ExportNamedDeclaration
     | ForInStatement
     | ForOfStatement
     | ForStatement
@@ -3990,9 +3943,7 @@ export interface ParentMaps {
   DeclareInterface:
     | BlockStatement
     | DeclareExportDeclaration
-    | DeclaredPredicate
     | DoWhileStatement
-    | ExportNamedDeclaration
     | ForInStatement
     | ForOfStatement
     | ForStatement
@@ -4007,9 +3958,7 @@ export interface ParentMaps {
   DeclareModule:
     | BlockStatement
     | DeclareExportDeclaration
-    | DeclaredPredicate
     | DoWhileStatement
-    | ExportNamedDeclaration
     | ForInStatement
     | ForOfStatement
     | ForStatement
@@ -4024,9 +3973,7 @@ export interface ParentMaps {
   DeclareModuleExports:
     | BlockStatement
     | DeclareExportDeclaration
-    | DeclaredPredicate
     | DoWhileStatement
-    | ExportNamedDeclaration
     | ForInStatement
     | ForOfStatement
     | ForStatement
@@ -4041,9 +3988,7 @@ export interface ParentMaps {
   DeclareOpaqueType:
     | BlockStatement
     | DeclareExportDeclaration
-    | DeclaredPredicate
     | DoWhileStatement
-    | ExportNamedDeclaration
     | ForInStatement
     | ForOfStatement
     | ForStatement
@@ -4058,9 +4003,7 @@ export interface ParentMaps {
   DeclareTypeAlias:
     | BlockStatement
     | DeclareExportDeclaration
-    | DeclaredPredicate
     | DoWhileStatement
-    | ExportNamedDeclaration
     | ForInStatement
     | ForOfStatement
     | ForStatement
@@ -4075,9 +4018,7 @@ export interface ParentMaps {
   DeclareVariable:
     | BlockStatement
     | DeclareExportDeclaration
-    | DeclaredPredicate
     | DoWhileStatement
-    | ExportNamedDeclaration
     | ForInStatement
     | ForOfStatement
     | ForStatement
@@ -4093,7 +4034,6 @@ export interface ParentMaps {
     | ArrowFunctionExpression
     | DeclareExportDeclaration
     | DeclareFunction
-    | DeclaredPredicate
     | FunctionDeclaration
     | FunctionExpression;
   Decorator:
@@ -4112,7 +4052,6 @@ export interface ParentMaps {
     | ObjectProperty
     | Placeholder
     | RestElement
-    | TSDeclareMethod
     | TSParameterProperty;
   Directive: BlockStatement | Program;
   DirectiveLiteral: Directive;
@@ -4132,6 +4071,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -4152,8 +4092,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -4213,7 +4151,6 @@ export interface ParentMaps {
     | DeclareExportDeclaration
     | DeclareOpaqueType
     | DeclareTypeAlias
-    | DeclaredPredicate
     | FunctionTypeAnnotation
     | FunctionTypeParam
     | IndexedAccessType
@@ -4233,19 +4170,13 @@ export interface ParentMaps {
     | TypeParameterInstantiation
     | TypeofTypeAnnotation
     | UnionTypeAnnotation;
-  EnumBooleanBody:
-    | DeclareExportDeclaration
-    | DeclaredPredicate
-    | EnumDeclaration;
-  EnumBooleanMember:
-    | DeclareExportDeclaration
-    | DeclaredPredicate
-    | EnumBooleanBody;
+  EnumBooleanBody: DeclareExportDeclaration | EnumDeclaration;
+  EnumBooleanMember: DeclareExportDeclaration | EnumBooleanBody;
   EnumDeclaration:
     | BlockStatement
     | DeclareExportDeclaration
-    | DeclaredPredicate
     | DoWhileStatement
+    | ExportDefaultDeclaration
     | ExportNamedDeclaration
     | ForInStatement
     | ForOfStatement
@@ -4259,36 +4190,17 @@ export interface ParentMaps {
     | WhileStatement
     | WithStatement;
   EnumDefaultedMember:
-    | DeclareExportDeclaration
-    | DeclaredPredicate
-    | EnumStringBody
-    | EnumSymbolBody;
-  EnumNumberBody:
-    | DeclareExportDeclaration
-    | DeclaredPredicate
-    | EnumDeclaration;
-  EnumNumberMember:
-    | DeclareExportDeclaration
-    | DeclaredPredicate
-    | EnumNumberBody;
-  EnumStringBody:
-    | DeclareExportDeclaration
-    | DeclaredPredicate
-    | EnumDeclaration;
-  EnumStringMember:
-    | DeclareExportDeclaration
-    | DeclaredPredicate
-    | EnumStringBody;
-  EnumSymbolBody:
-    | DeclareExportDeclaration
-    | DeclaredPredicate
-    | EnumDeclaration;
+    DeclareExportDeclaration | EnumStringBody | EnumSymbolBody;
+  EnumNumberBody: DeclareExportDeclaration | EnumDeclaration;
+  EnumNumberMember: DeclareExportDeclaration | EnumNumberBody;
+  EnumStringBody: DeclareExportDeclaration | EnumDeclaration;
+  EnumStringMember: DeclareExportDeclaration | EnumStringBody;
+  EnumSymbolBody: DeclareExportDeclaration | EnumDeclaration;
   ExistsTypeAnnotation:
     | ArrayTypeAnnotation
     | DeclareExportDeclaration
     | DeclareOpaqueType
     | DeclareTypeAlias
-    | DeclaredPredicate
     | FunctionTypeAnnotation
     | FunctionTypeParam
     | IndexedAccessType
@@ -4311,7 +4223,6 @@ export interface ParentMaps {
   ExportAllDeclaration:
     | BlockStatement
     | DoWhileStatement
-    | ExportNamedDeclaration
     | ForInStatement
     | ForOfStatement
     | ForStatement
@@ -4326,7 +4237,6 @@ export interface ParentMaps {
   ExportDefaultDeclaration:
     | BlockStatement
     | DoWhileStatement
-    | ExportNamedDeclaration
     | ForInStatement
     | ForOfStatement
     | ForStatement
@@ -4342,7 +4252,6 @@ export interface ParentMaps {
   ExportNamedDeclaration:
     | BlockStatement
     | DoWhileStatement
-    | ExportNamedDeclaration
     | ForInStatement
     | ForOfStatement
     | ForStatement
@@ -4445,6 +4354,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -4465,8 +4375,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -4498,7 +4406,6 @@ export interface ParentMaps {
     | DeclareExportDeclaration
     | DeclareOpaqueType
     | DeclareTypeAlias
-    | DeclaredPredicate
     | FunctionTypeAnnotation
     | FunctionTypeParam
     | IndexedAccessType
@@ -4518,16 +4425,12 @@ export interface ParentMaps {
     | TypeParameterInstantiation
     | TypeofTypeAnnotation
     | UnionTypeAnnotation;
-  FunctionTypeParam:
-    | DeclareExportDeclaration
-    | DeclaredPredicate
-    | FunctionTypeAnnotation;
+  FunctionTypeParam: DeclareExportDeclaration | FunctionTypeAnnotation;
   GenericTypeAnnotation:
     | ArrayTypeAnnotation
     | DeclareExportDeclaration
     | DeclareOpaqueType
     | DeclareTypeAlias
-    | DeclaredPredicate
     | FunctionTypeAnnotation
     | FunctionTypeParam
     | IndexedAccessType
@@ -4576,6 +4479,7 @@ export interface ParentMaps {
     | DeclareOpaqueType
     | DeclareTypeAlias
     | DeclareVariable
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | EnumBooleanMember
@@ -4620,8 +4524,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | Placeholder
     | PrivateName
     | QualifiedTypeIdentifier
@@ -4668,7 +4570,9 @@ export interface ParentMaps {
     | TemplateLiteral
     | ThrowStatement
     | TypeAlias
+    | TypeAnnotation
     | TypeCastExpression
+    | TypeofTypeAnnotation
     | UnaryExpression
     | UpdateExpression
     | VariableDeclarator
@@ -4689,70 +4593,7 @@ export interface ParentMaps {
     | TSModuleBlock
     | WhileStatement
     | WithStatement;
-  Import:
-    | ArrayExpression
-    | ArrowFunctionExpression
-    | AssignmentExpression
-    | AssignmentPattern
-    | AwaitExpression
-    | BinaryExpression
-    | BindExpression
-    | CallExpression
-    | ClassAccessorProperty
-    | ClassDeclaration
-    | ClassExpression
-    | ClassMethod
-    | ClassPrivateProperty
-    | ClassProperty
-    | ConditionalExpression
-    | Decorator
-    | DoWhileStatement
-    | ExportDefaultDeclaration
-    | ExpressionStatement
-    | ForInStatement
-    | ForOfStatement
-    | ForStatement
-    | IfStatement
-    | ImportExpression
-    | JSXExpressionContainer
-    | JSXSpreadAttribute
-    | JSXSpreadChild
-    | LogicalExpression
-    | MemberExpression
-    | NewExpression
-    | ObjectMethod
-    | ObjectProperty
-    | OptionalCallExpression
-    | OptionalMemberExpression
-    | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
-    | ReturnStatement
-    | SequenceExpression
-    | SpreadElement
-    | SwitchCase
-    | SwitchStatement
-    | TSAsExpression
-    | TSClassImplements
-    | TSDeclareMethod
-    | TSEnumMember
-    | TSExportAssignment
-    | TSInstantiationExpression
-    | TSInterfaceHeritage
-    | TSMethodSignature
-    | TSNonNullExpression
-    | TSPropertySignature
-    | TSSatisfiesExpression
-    | TSTypeAssertion
-    | TaggedTemplateExpression
-    | TemplateLiteral
-    | ThrowStatement
-    | TypeCastExpression
-    | UnaryExpression
-    | VariableDeclarator
-    | WhileStatement
-    | WithStatement
-    | YieldExpression;
+  Import: CallExpression;
   ImportAttribute:
     | DeclareExportAllDeclaration
     | DeclareExportDeclaration
@@ -4762,7 +4603,6 @@ export interface ParentMaps {
   ImportDeclaration:
     | BlockStatement
     | DoWhileStatement
-    | ExportNamedDeclaration
     | ForInStatement
     | ForOfStatement
     | ForStatement
@@ -4791,6 +4631,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -4811,8 +4652,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -4846,7 +4685,6 @@ export interface ParentMaps {
     | DeclareExportDeclaration
     | DeclareOpaqueType
     | DeclareTypeAlias
-    | DeclaredPredicate
     | FunctionTypeAnnotation
     | FunctionTypeParam
     | IndexedAccessType
@@ -4869,13 +4707,12 @@ export interface ParentMaps {
   InferredPredicate:
     | ArrowFunctionExpression
     | DeclareExportDeclaration
-    | DeclaredPredicate
+    | DeclareFunction
     | FunctionDeclaration
     | FunctionExpression;
   InterfaceDeclaration:
     | BlockStatement
     | DeclareExportDeclaration
-    | DeclaredPredicate
     | DoWhileStatement
     | ExportNamedDeclaration
     | ForInStatement
@@ -4895,7 +4732,6 @@ export interface ParentMaps {
     | DeclareClass
     | DeclareExportDeclaration
     | DeclareInterface
-    | DeclaredPredicate
     | InterfaceDeclaration
     | InterfaceTypeAnnotation;
   InterfaceTypeAnnotation:
@@ -4903,7 +4739,6 @@ export interface ParentMaps {
     | DeclareExportDeclaration
     | DeclareOpaqueType
     | DeclareTypeAlias
-    | DeclaredPredicate
     | FunctionTypeAnnotation
     | FunctionTypeParam
     | IndexedAccessType
@@ -4929,7 +4764,6 @@ export interface ParentMaps {
     | DeclareExportDeclaration
     | DeclareOpaqueType
     | DeclareTypeAlias
-    | DeclaredPredicate
     | FunctionTypeAnnotation
     | FunctionTypeParam
     | IndexedAccessType
@@ -4968,6 +4802,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -4991,8 +4826,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -5037,6 +4870,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -5060,8 +4894,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -5095,9 +4927,7 @@ export interface ParentMaps {
     | JSXNamespacedName
     | JSXOpeningElement;
   JSXMemberExpression:
-    | JSXClosingElement
-    | JSXMemberExpression
-    | JSXOpeningElement;
+    JSXClosingElement | JSXMemberExpression | JSXOpeningElement;
   JSXNamespacedName: JSXAttribute | JSXClosingElement | JSXOpeningElement;
   JSXOpeningElement: JSXElement;
   JSXOpeningFragment: JSXFragment;
@@ -5134,6 +4964,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -5154,8 +4985,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -5199,6 +5028,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -5219,8 +5049,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | RestElement
     | ReturnStatement
     | SequenceExpression
@@ -5265,6 +5093,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -5285,8 +5114,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -5318,7 +5145,6 @@ export interface ParentMaps {
     | DeclareExportDeclaration
     | DeclareOpaqueType
     | DeclareTypeAlias
-    | DeclaredPredicate
     | FunctionTypeAnnotation
     | FunctionTypeParam
     | IndexedAccessType
@@ -5354,6 +5180,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -5374,8 +5201,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -5418,6 +5243,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -5438,8 +5264,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -5482,6 +5306,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -5502,8 +5327,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -5535,7 +5358,6 @@ export interface ParentMaps {
     | DeclareExportDeclaration
     | DeclareOpaqueType
     | DeclareTypeAlias
-    | DeclaredPredicate
     | FunctionTypeAnnotation
     | FunctionTypeParam
     | IndexedAccessType
@@ -5560,7 +5382,6 @@ export interface ParentMaps {
     | DeclareExportDeclaration
     | DeclareOpaqueType
     | DeclareTypeAlias
-    | DeclaredPredicate
     | FunctionTypeAnnotation
     | FunctionTypeParam
     | IndexedAccessType
@@ -5586,7 +5407,6 @@ export interface ParentMaps {
     | DeclareExportDeclaration
     | DeclareOpaqueType
     | DeclareTypeAlias
-    | DeclaredPredicate
     | FunctionTypeAnnotation
     | FunctionTypeParam
     | IndexedAccessType
@@ -5611,7 +5431,6 @@ export interface ParentMaps {
     | DeclareExportDeclaration
     | DeclareOpaqueType
     | DeclareTypeAlias
-    | DeclaredPredicate
     | FunctionTypeAnnotation
     | FunctionTypeParam
     | IndexedAccessType
@@ -5647,6 +5466,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | EnumNumberMember
@@ -5665,11 +5485,10 @@ export interface ParentMaps {
     | NewExpression
     | ObjectMethod
     | ObjectProperty
+    | ObjectTypeProperty
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -5713,6 +5532,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -5733,8 +5553,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -5794,7 +5612,6 @@ export interface ParentMaps {
     | DeclareInterface
     | DeclareOpaqueType
     | DeclareTypeAlias
-    | DeclaredPredicate
     | FunctionTypeAnnotation
     | FunctionTypeParam
     | IndexedAccessType
@@ -5816,30 +5633,14 @@ export interface ParentMaps {
     | TypeParameterInstantiation
     | TypeofTypeAnnotation
     | UnionTypeAnnotation;
-  ObjectTypeCallProperty:
-    | DeclareExportDeclaration
-    | DeclaredPredicate
-    | ObjectTypeAnnotation;
-  ObjectTypeIndexer:
-    | DeclareExportDeclaration
-    | DeclaredPredicate
-    | ObjectTypeAnnotation;
-  ObjectTypeInternalSlot:
-    | DeclareExportDeclaration
-    | DeclaredPredicate
-    | ObjectTypeAnnotation;
-  ObjectTypeProperty:
-    | DeclareExportDeclaration
-    | DeclaredPredicate
-    | ObjectTypeAnnotation;
-  ObjectTypeSpreadProperty:
-    | DeclareExportDeclaration
-    | DeclaredPredicate
-    | ObjectTypeAnnotation;
+  ObjectTypeCallProperty: DeclareExportDeclaration | ObjectTypeAnnotation;
+  ObjectTypeIndexer: DeclareExportDeclaration | ObjectTypeAnnotation;
+  ObjectTypeInternalSlot: DeclareExportDeclaration | ObjectTypeAnnotation;
+  ObjectTypeProperty: DeclareExportDeclaration | ObjectTypeAnnotation;
+  ObjectTypeSpreadProperty: DeclareExportDeclaration | ObjectTypeAnnotation;
   OpaqueType:
     | BlockStatement
     | DeclareExportDeclaration
-    | DeclaredPredicate
     | DoWhileStatement
     | ExportNamedDeclaration
     | ForInStatement
@@ -5869,6 +5670,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -5889,8 +5691,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -5922,7 +5722,6 @@ export interface ParentMaps {
     | DeclareExportDeclaration
     | DeclareOpaqueType
     | DeclareTypeAlias
-    | DeclaredPredicate
     | FunctionTypeAnnotation
     | FunctionTypeParam
     | IndexedAccessType
@@ -5958,6 +5757,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -5978,8 +5778,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -6022,6 +5820,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -6042,200 +5841,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
-    | ReturnStatement
-    | SequenceExpression
-    | SpreadElement
-    | SwitchCase
-    | SwitchStatement
-    | TSAsExpression
-    | TSClassImplements
-    | TSDeclareMethod
-    | TSEnumMember
-    | TSExportAssignment
-    | TSInstantiationExpression
-    | TSInterfaceHeritage
-    | TSMethodSignature
-    | TSNonNullExpression
-    | TSPropertySignature
-    | TSSatisfiesExpression
-    | TSTypeAssertion
-    | TaggedTemplateExpression
-    | TemplateLiteral
-    | ThrowStatement
-    | TypeCastExpression
-    | UnaryExpression
-    | VariableDeclarator
-    | WhileStatement
-    | WithStatement
-    | YieldExpression;
-  PipelineBareFunction:
-    | ArrayExpression
-    | ArrowFunctionExpression
-    | AssignmentExpression
-    | AssignmentPattern
-    | AwaitExpression
-    | BinaryExpression
-    | BindExpression
-    | CallExpression
-    | ClassAccessorProperty
-    | ClassDeclaration
-    | ClassExpression
-    | ClassMethod
-    | ClassPrivateProperty
-    | ClassProperty
-    | ConditionalExpression
-    | Decorator
-    | DoWhileStatement
-    | ExportDefaultDeclaration
-    | ExpressionStatement
-    | ForInStatement
-    | ForOfStatement
-    | ForStatement
-    | IfStatement
-    | ImportExpression
-    | JSXExpressionContainer
-    | JSXSpreadAttribute
-    | JSXSpreadChild
-    | LogicalExpression
-    | MemberExpression
-    | NewExpression
-    | ObjectMethod
-    | ObjectProperty
-    | OptionalCallExpression
-    | OptionalMemberExpression
-    | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
-    | ReturnStatement
-    | SequenceExpression
-    | SpreadElement
-    | SwitchCase
-    | SwitchStatement
-    | TSAsExpression
-    | TSClassImplements
-    | TSDeclareMethod
-    | TSEnumMember
-    | TSExportAssignment
-    | TSInstantiationExpression
-    | TSInterfaceHeritage
-    | TSMethodSignature
-    | TSNonNullExpression
-    | TSPropertySignature
-    | TSSatisfiesExpression
-    | TSTypeAssertion
-    | TaggedTemplateExpression
-    | TemplateLiteral
-    | ThrowStatement
-    | TypeCastExpression
-    | UnaryExpression
-    | VariableDeclarator
-    | WhileStatement
-    | WithStatement
-    | YieldExpression;
-  PipelinePrimaryTopicReference:
-    | ArrayExpression
-    | ArrowFunctionExpression
-    | AssignmentExpression
-    | AssignmentPattern
-    | AwaitExpression
-    | BinaryExpression
-    | BindExpression
-    | CallExpression
-    | ClassAccessorProperty
-    | ClassDeclaration
-    | ClassExpression
-    | ClassMethod
-    | ClassPrivateProperty
-    | ClassProperty
-    | ConditionalExpression
-    | Decorator
-    | DoWhileStatement
-    | ExportDefaultDeclaration
-    | ExpressionStatement
-    | ForInStatement
-    | ForOfStatement
-    | ForStatement
-    | IfStatement
-    | ImportExpression
-    | JSXExpressionContainer
-    | JSXSpreadAttribute
-    | JSXSpreadChild
-    | LogicalExpression
-    | MemberExpression
-    | NewExpression
-    | ObjectMethod
-    | ObjectProperty
-    | OptionalCallExpression
-    | OptionalMemberExpression
-    | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
-    | ReturnStatement
-    | SequenceExpression
-    | SpreadElement
-    | SwitchCase
-    | SwitchStatement
-    | TSAsExpression
-    | TSClassImplements
-    | TSDeclareMethod
-    | TSEnumMember
-    | TSExportAssignment
-    | TSInstantiationExpression
-    | TSInterfaceHeritage
-    | TSMethodSignature
-    | TSNonNullExpression
-    | TSPropertySignature
-    | TSSatisfiesExpression
-    | TSTypeAssertion
-    | TaggedTemplateExpression
-    | TemplateLiteral
-    | ThrowStatement
-    | TypeCastExpression
-    | UnaryExpression
-    | VariableDeclarator
-    | WhileStatement
-    | WithStatement
-    | YieldExpression;
-  PipelineTopicExpression:
-    | ArrayExpression
-    | ArrowFunctionExpression
-    | AssignmentExpression
-    | AssignmentPattern
-    | AwaitExpression
-    | BinaryExpression
-    | BindExpression
-    | CallExpression
-    | ClassAccessorProperty
-    | ClassDeclaration
-    | ClassExpression
-    | ClassMethod
-    | ClassPrivateProperty
-    | ClassProperty
-    | ConditionalExpression
-    | Decorator
-    | DoWhileStatement
-    | ExportDefaultDeclaration
-    | ExpressionStatement
-    | ForInStatement
-    | ForOfStatement
-    | ForStatement
-    | IfStatement
-    | ImportExpression
-    | JSXExpressionContainer
-    | JSXSpreadAttribute
-    | JSXSpreadChild
-    | LogicalExpression
-    | MemberExpression
-    | NewExpression
-    | ObjectMethod
-    | ObjectProperty
-    | OptionalCallExpression
-    | OptionalMemberExpression
-    | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -6266,14 +5871,17 @@ export interface ParentMaps {
   PrivateName:
     | BinaryExpression
     | ClassAccessorProperty
+    | ClassMethod
     | ClassPrivateMethod
     | ClassPrivateProperty
+    | ClassProperty
     | MemberExpression
-    | ObjectProperty;
+    | ObjectProperty
+    | OptionalMemberExpression
+    | TSDeclareMethod;
   Program: File | ModuleExpression;
   QualifiedTypeIdentifier:
     | DeclareExportDeclaration
-    | DeclaredPredicate
     | GenericTypeAnnotation
     | InterfaceExtends
     | QualifiedTypeIdentifier;
@@ -6293,6 +5901,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -6313,8 +5922,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -6390,6 +5997,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -6410,8 +6018,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -6465,12 +6071,14 @@ export interface ParentMaps {
     | DeclareExportAllDeclaration
     | DeclareExportDeclaration
     | DeclareModule
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | EnumStringMember
     | ExportAllDeclaration
     | ExportDefaultDeclaration
     | ExportNamedDeclaration
+    | ExportNamespaceSpecifier
     | ExportSpecifier
     | ExpressionStatement
     | ForInStatement
@@ -6494,8 +6102,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -6531,7 +6137,6 @@ export interface ParentMaps {
     | DeclareExportDeclaration
     | DeclareOpaqueType
     | DeclareTypeAlias
-    | DeclaredPredicate
     | FunctionTypeAnnotation
     | FunctionTypeParam
     | IndexedAccessType
@@ -6556,7 +6161,6 @@ export interface ParentMaps {
     | DeclareExportDeclaration
     | DeclareOpaqueType
     | DeclareTypeAlias
-    | DeclaredPredicate
     | FunctionTypeAnnotation
     | FunctionTypeParam
     | IndexedAccessType
@@ -6576,7 +6180,7 @@ export interface ParentMaps {
     | TypeParameterInstantiation
     | TypeofTypeAnnotation
     | UnionTypeAnnotation;
-  Super: CallExpression | MemberExpression | NewExpression;
+  Super: CallExpression | MemberExpression;
   SwitchCase: SwitchStatement;
   SwitchStatement:
     | BlockStatement
@@ -6597,7 +6201,6 @@ export interface ParentMaps {
     | DeclareExportDeclaration
     | DeclareOpaqueType
     | DeclareTypeAlias
-    | DeclaredPredicate
     | FunctionTypeAnnotation
     | FunctionTypeParam
     | IndexedAccessType
@@ -6678,6 +6281,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -6698,8 +6302,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | RestElement
     | ReturnStatement
     | SequenceExpression
@@ -6779,7 +6381,6 @@ export interface ParentMaps {
     | TSAsExpression
     | TSConditionalType
     | TSIndexedAccessType
-    | TSInterfaceDeclaration
     | TSIntersectionType
     | TSMappedType
     | TSNamedTupleMember
@@ -7012,6 +6613,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -7032,8 +6634,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -7064,6 +6664,7 @@ export interface ParentMaps {
   TSInterfaceDeclaration:
     | BlockStatement
     | DoWhileStatement
+    | ExportDefaultDeclaration
     | ExportNamedDeclaration
     | ForInStatement
     | ForOfStatement
@@ -7081,6 +6682,7 @@ export interface ParentMaps {
     | TSAsExpression
     | TSConditionalType
     | TSIndexedAccessType
+    | TSInterfaceDeclaration
     | TSIntersectionType
     | TSMappedType
     | TSNamedTupleMember
@@ -7203,7 +6805,28 @@ export interface ParentMaps {
     | TSModuleBlock
     | WhileStatement
     | WithStatement;
-  TSNamedTupleMember: TSTupleType;
+  TSNamedTupleMember:
+    | TSArrayType
+    | TSAsExpression
+    | TSConditionalType
+    | TSIndexedAccessType
+    | TSIntersectionType
+    | TSMappedType
+    | TSNamedTupleMember
+    | TSOptionalType
+    | TSParenthesizedType
+    | TSRestType
+    | TSSatisfiesExpression
+    | TSTemplateLiteralType
+    | TSTupleType
+    | TSTypeAliasDeclaration
+    | TSTypeAnnotation
+    | TSTypeAssertion
+    | TSTypeOperator
+    | TSTypeParameter
+    | TSTypeParameterInstantiation
+    | TSUnionType
+    | TemplateLiteral;
   TSNamespaceExportDeclaration:
     | BlockStatement
     | DoWhileStatement
@@ -7257,6 +6880,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -7277,8 +6901,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | RestElement
     | ReturnStatement
     | SequenceExpression
@@ -7464,6 +7086,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -7484,8 +7107,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | RestElement
     | ReturnStatement
     | SequenceExpression
@@ -7682,6 +7303,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -7702,8 +7324,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | RestElement
     | ReturnStatement
     | SequenceExpression
@@ -7978,6 +7598,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -7998,8 +7619,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -8043,6 +7662,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -8063,8 +7683,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -8108,6 +7726,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -8128,8 +7747,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -8167,7 +7784,6 @@ export interface ParentMaps {
     | DeclareExportDeclaration
     | DeclareOpaqueType
     | DeclareTypeAlias
-    | DeclaredPredicate
     | FunctionTypeAnnotation
     | FunctionTypeParam
     | IndexedAccessType
@@ -8217,6 +7833,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -8237,8 +7854,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -8284,7 +7899,6 @@ export interface ParentMaps {
     | DeclareExportDeclaration
     | DeclareOpaqueType
     | DeclareTypeAlias
-    | DeclaredPredicate
     | FunctionTypeAnnotation
     | FunctionTypeParam
     | IndexedAccessType
@@ -8307,7 +7921,6 @@ export interface ParentMaps {
   TypeAlias:
     | BlockStatement
     | DeclareExportDeclaration
-    | DeclaredPredicate
     | DoWhileStatement
     | ExportNamedDeclaration
     | ForInStatement
@@ -8332,7 +7945,6 @@ export interface ParentMaps {
     | ClassProperty
     | DeclareExportDeclaration
     | DeclareModuleExports
-    | DeclaredPredicate
     | FunctionDeclaration
     | FunctionExpression
     | Identifier
@@ -8380,8 +7992,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -8408,10 +8018,7 @@ export interface ParentMaps {
     | WhileStatement
     | WithStatement
     | YieldExpression;
-  TypeParameter:
-    | DeclareExportDeclaration
-    | DeclaredPredicate
-    | TypeParameterDeclaration;
+  TypeParameter: DeclareExportDeclaration | TypeParameterDeclaration;
   TypeParameterDeclaration:
     | ArrowFunctionExpression
     | ClassDeclaration
@@ -8423,7 +8030,6 @@ export interface ParentMaps {
     | DeclareInterface
     | DeclareOpaqueType
     | DeclareTypeAlias
-    | DeclaredPredicate
     | FunctionDeclaration
     | FunctionExpression
     | FunctionTypeAnnotation
@@ -8437,7 +8043,6 @@ export interface ParentMaps {
     | ClassExpression
     | ClassImplements
     | DeclareExportDeclaration
-    | DeclaredPredicate
     | GenericTypeAnnotation
     | InterfaceExtends
     | JSXOpeningElement
@@ -8449,7 +8054,6 @@ export interface ParentMaps {
     | DeclareExportDeclaration
     | DeclareOpaqueType
     | DeclareTypeAlias
-    | DeclaredPredicate
     | FunctionTypeAnnotation
     | FunctionTypeParam
     | IndexedAccessType
@@ -8485,6 +8089,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -8505,8 +8110,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -8539,7 +8142,6 @@ export interface ParentMaps {
     | DeclareExportDeclaration
     | DeclareOpaqueType
     | DeclareTypeAlias
-    | DeclaredPredicate
     | FunctionTypeAnnotation
     | FunctionTypeParam
     | IndexedAccessType
@@ -8575,6 +8177,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -8595,8 +8198,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement
@@ -8645,7 +8246,6 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | DeclareExportDeclaration
-    | DeclaredPredicate
     | ObjectTypeIndexer
     | ObjectTypeProperty
     | TypeParameter;
@@ -8666,7 +8266,6 @@ export interface ParentMaps {
     | DeclareExportDeclaration
     | DeclareOpaqueType
     | DeclareTypeAlias
-    | DeclaredPredicate
     | FunctionTypeAnnotation
     | FunctionTypeParam
     | IndexedAccessType
@@ -8730,6 +8329,7 @@ export interface ParentMaps {
     | ClassPrivateProperty
     | ClassProperty
     | ConditionalExpression
+    | DeclaredPredicate
     | Decorator
     | DoWhileStatement
     | ExportDefaultDeclaration
@@ -8750,8 +8350,6 @@ export interface ParentMaps {
     | OptionalCallExpression
     | OptionalMemberExpression
     | ParenthesizedExpression
-    | PipelineBareFunction
-    | PipelineTopicExpression
     | ReturnStatement
     | SequenceExpression
     | SpreadElement

@@ -83,11 +83,17 @@ export default class SourceMap {
    * Get the sourcemap.
    */
   get(): EncodedSourceMap {
-    return toEncodedMap(this._map);
+    const encoded = toEncodedMap(this._map);
+    // TODO(Babel 9): Remove this fallback.
+    encoded.ignoreList ??= [];
+    return encoded;
   }
 
   getDecoded(): DecodedSourceMap {
-    return toDecodedMap(this._map);
+    const decoded = toDecodedMap(this._map);
+    // TODO(Babel 9): Remove this fallback.
+    decoded.ignoreList ??= [];
+    return decoded;
   }
 
   getRawMappings(): Mapping[] {
@@ -101,8 +107,9 @@ export default class SourceMap {
 
   mark(
     generated: { line: number; column: number },
-    line: number | undefined,
-    column: number | undefined,
+    generatedIdentifierName: string | null,
+    line?: number,
+    column?: number,
     identifierName?: string | null,
     identifierNamePos?: { line: number; column: number },
     filename?: string | null,
@@ -119,11 +126,19 @@ export default class SourceMap {
           column: column!,
         });
 
-        // If the we found a name, nothing else needs to be done
-        // Maybe we're marking a `(` and the input map already had a name attached there,
-        // or we're marking a `(` and the sourcemap spanned a `foo(`,
-        // or we're marking an identifier, etc.
-        if (!originalMapping.name && identifierNamePos) {
+        // Prefer the original name from the input sourcemap when marking an
+        // identifier token at the same column, or when marking a related
+        // token such as `(` via identifierNamePos.
+        if (
+          originalMapping.name &&
+          (identifierNamePos ||
+            (identifierName != null && originalMapping.column === column))
+        ) {
+          identifierName = originalMapping.name;
+        } else if (identifierNamePos) {
+          // Maybe we're marking a `(` and the input map already had a name attached there,
+          // or we're marking a `(` and the sourcemap spanned a `foo(`,
+          // or we're marking an identifier, etc.
           // We're trying to mark a `(` (as that's the only thing that provides
           // an identifierNamePos currently), and we the AST had an identifier attached.
           // Lookup it's original name.
@@ -143,6 +158,10 @@ export default class SourceMap {
           column: column!,
         };
       }
+    }
+
+    if (identifierName != null && identifierName === generatedIdentifierName) {
+      identifierName = null;
     }
 
     // @ts-expect-error FIXME: original cannot be InvalidOriginalMapping

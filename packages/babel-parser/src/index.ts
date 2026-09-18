@@ -6,14 +6,13 @@ import {
 } from "./plugin-utils.ts";
 export type {
   PluginConfig as ParserPlugin,
-  DecoratorsPluginOptions,
   FlowPluginOptions,
   PipelineOperatorPluginOptions,
-  RecordAndTuplePluginOptions,
   TypeScriptPluginOptions,
-} from "./typings.ts";
+} from "./typings.d.ts";
 import Parser, { type PluginsMap } from "./parser/index.ts";
-import type { ParseError as ParseErrorGeneric } from "./parse-error.ts";
+import type { ParseError } from "./parse-error.ts";
+export type { ParseError };
 
 import type { ExportedTokenType } from "./tokenizer/types.ts";
 import {
@@ -30,10 +29,9 @@ export type { Expression, File };
 
 export type ParserOptions = Partial<Options>;
 
-export type ParseError = ParseErrorGeneric<object>;
 export type ParseResult<Result extends File | Expression = File> = Result & {
   comments: File["comments"];
-  errors: null | ParseError[];
+  errors: ParseError[];
   tokens?: File["tokens"];
 };
 
@@ -95,7 +93,7 @@ export function parseExpression(
   if (parser.options.strictMode) {
     parser.state.strict = true;
   }
-  return parser.getExpression() as ParseResult<Expression>;
+  return parser.getExpression();
 }
 
 function generateExportedTokenTypes(
@@ -160,4 +158,18 @@ function getParserClass(
     parserClassCache.set(key, cls);
   }
   return cls;
+}
+
+export function getLine(locData: Uint32Array, pos: number): number {
+  if (pos < 0 || pos * 2 >= locData.length) {
+    throw new Error(`Position ${pos} is out of bounds for location data.`);
+  }
+  return locData[pos * 2];
+}
+
+export function getColumn(locData: Uint32Array, pos: number): number {
+  if (pos < 0 || pos * 2 + 1 >= locData.length) {
+    throw new Error(`Position ${pos} is out of bounds for location data.`);
+  }
+  return locData[pos * 2 + 1];
 }

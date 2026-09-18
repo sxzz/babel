@@ -1,5 +1,4 @@
-import _normalizeOptions from "../lib/normalize-options.js";
-const normalizeOptions = _normalizeOptions.default || _normalizeOptions;
+import normalizeOptions from "../lib/normalize-options.js";
 
 describe("normalize options", () => {
   describe("Babel 8", () => {
@@ -39,7 +38,7 @@ describe("normalize options", () => {
     });
     it("default values", () => {
       expect(normalizeOptions({})).toMatchInlineSnapshot(`
-        Object {
+        {
           "allowNamespaces": true,
           "disallowAmbiguousJSXLike": false,
           "ignoreExtensions": false,

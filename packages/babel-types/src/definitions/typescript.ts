@@ -11,8 +11,7 @@ import {
   validateOptional,
   validateOptionalType,
   validateType,
-  type ValidatorImpl,
-  type ValidatorOneOfNodeTypes,
+  combine,
 } from "./utils.ts";
 import {
   functionDeclarationCommon,
@@ -74,10 +73,10 @@ defineType("TSDeclareFunction", {
 });
 
 defineType("TSDeclareMethod", {
-  visitor: ["decorators", "key", "typeParameters", "params", "returnType"],
-  ...classMethodOrPropertyUnionShapeCommon(),
+  visitor: ["key", "typeParameters", "params", "returnType"],
+  ...classMethodOrPropertyUnionShapeCommon(true),
   fields: {
-    ...classMethodOrDeclareMethodCommon(),
+    ...classMethodOrDeclareMethodCommon(false),
     ...tSFunctionTypeAnnotationCommon(),
   },
 });
@@ -93,13 +92,13 @@ defineType("TSQualifiedName", {
 
 const signatureDeclarationCommon = () => ({
   typeParameters: validateOptionalType("TSTypeParameterDeclaration"),
-  ["params"]: validateArrayOfType(
+  params: validateArrayOfType(
     "ArrayPattern",
     "Identifier",
     "ObjectPattern",
     "RestElement",
   ),
-  ["returnType"]: validateOptionalType("TSTypeAnnotation"),
+  returnType: validateOptionalType("TSTypeAnnotation"),
 });
 
 const callConstructSignatureDeclaration = {
@@ -142,6 +141,7 @@ defineType("TSMethodSignature", {
     ...namedTypeElementCommon(),
     kind: {
       validate: assertOneOf("method", "get", "set"),
+      default: "method",
     },
   },
 });
@@ -209,7 +209,7 @@ defineType("TSTypeReference", {
   visitor: ["typeName", "typeArguments"],
   fields: {
     typeName: validateType("TSEntityName"),
-    ["typeArguments"]: validateOptionalType("TSTypeParameterInstantiation"),
+    typeArguments: validateOptionalType("TSTypeParameterInstantiation"),
   },
 });
 
@@ -229,7 +229,7 @@ defineType("TSTypeQuery", {
   visitor: ["exprName", "typeArguments"],
   fields: {
     exprName: validateType("TSEntityName", "TSImportType"),
-    ["typeArguments"]: validateOptionalType("TSTypeParameterInstantiation"),
+    typeArguments: validateOptionalType("TSTypeParameterInstantiation"),
   },
 });
 
@@ -274,6 +274,7 @@ defineType("TSRestType", {
 });
 
 defineType("TSNamedTupleMember", {
+  aliases: ["TSType"],
   visitor: ["label", "elementType"],
   builder: ["label", "elementType", "optional"],
   fields: {
@@ -331,9 +332,6 @@ defineType("TSTypeOperator", {
   fields: {
     operator: {
       validate: assertOneOf("keyof", "readonly", "unique"),
-      // "keyof" is not a good default, but as this field is required better
-      // pick one. We need it for backwards compatibility with older versions
-      // of Babel 7.
       default: undefined,
     },
     typeAnnotation: validateType("TSType"),
@@ -383,7 +381,7 @@ defineType("TSTemplateLiteralType", {
               } quasis but got ${node.quasis.length}`,
             );
           }
-        } satisfies ValidatorImpl,
+        },
       ),
     },
   },
@@ -408,31 +406,29 @@ defineType("TSLiteralType", {
           "BigIntLiteral",
           "TemplateLiteral",
         );
-        const validator: ValidatorOneOfNodeTypes = function validator(
-          parent: t.Node,
-          key: string,
-          node: t.Node,
-        ) {
-          // type A = -1 | 1;
-          if (is("UnaryExpression", node)) {
-            // check operator first
-            unaryOperator(node, "operator", node.operator);
-            unaryExpression(node, "argument", node.argument);
-          } else {
-            // type A = 'foo' | 'bar' | false | 1;
-            literal(parent, key, node);
-          }
-        };
-
-        validator.oneOfNodeTypes = [
-          "NumericLiteral",
-          "StringLiteral",
-          "BooleanLiteral",
-          "BigIntLiteral",
-          "TemplateLiteral",
-          "UnaryExpression",
-        ];
-
+        const validator = combine(
+          function validator(parent, key, node: t.Node) {
+            // type A = -1 | 1;
+            if (is("UnaryExpression", node)) {
+              // check operator first
+              unaryOperator(node, "operator", node.operator);
+              unaryExpression(node, "argument", node.argument);
+            } else {
+              // type A = 'foo' | 'bar' | false | 1;
+              literal(parent, key, node);
+            }
+          },
+          {
+            oneOfNodeTypes: [
+              "NumericLiteral",
+              "StringLiteral",
+              "BooleanLiteral",
+              "BigIntLiteral",
+              "TemplateLiteral",
+              "UnaryExpression",
+            ],
+          },
+        );
         return validator;
       })(),
     },
@@ -464,7 +460,7 @@ defineType("TSInterfaceDeclaration", {
     declare: validateOptional(bool),
     id: validateType("Identifier"),
     typeParameters: validateOptionalType("TSTypeParameterDeclaration"),
-    extends: validateOptional(arrayOfType("TSClassImplements")),
+    extends: validateOptional(arrayOfType("TSInterfaceHeritage")),
     body: validateType("TSInterfaceBody"),
   },
 });
@@ -492,7 +488,7 @@ defineType("TSInstantiationExpression", {
   visitor: ["expression", "typeArguments"],
   fields: {
     expression: validateType("Expression"),
-    ["typeArguments"]: validateOptionalType("TSTypeParameterInstantiation"),
+    typeArguments: validateOptionalType("TSTypeParameterInstantiation"),
   },
 });
 
@@ -550,10 +546,29 @@ defineType("TSModuleDeclaration", {
   visitor: ["id", "body"],
   fields: {
     kind: {
-      validate: assertOneOf("global", "module", "namespace"),
+      validate: assertOneOf("global", "namespace", "module"),
+      default: "namespace",
     },
     declare: validateOptional(bool),
-    id: validateType("TSEntityName", "StringLiteral"),
+    id: {
+      validate: chain(
+        assertNodeType("TSEntityName", "StringLiteral"),
+        combine(
+          function (
+            node: t.TSModuleDeclaration,
+            key,
+            val: t.TSEntityName | t.StringLiteral,
+          ) {
+            if (node.kind === "namespace" && is("StringLiteral", val)) {
+              throw new TypeError(
+                `TSModuleDeclaration of kind 'namespace' cannot have a StringLiteral id.`,
+              );
+            }
+          },
+          { oneOfNodeTypes: ["TSEntityName", "StringLiteral"] },
+        ),
+      ),
+    },
     body: validateType("TSModuleBlock"),
   },
 });

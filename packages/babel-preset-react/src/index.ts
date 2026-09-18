@@ -8,21 +8,21 @@ import type { PluginItem } from "@babel/core";
 
 export interface Options {
   development?: boolean;
+  developmentSourceSelf?: boolean;
   importSource?: string;
   pragma?: string;
   pragmaFrag?: string;
   pure?: string;
   runtime?: "automatic" | "classic";
   throwIfNamespace?: boolean;
-  useBuiltIns?: boolean;
-  useSpread?: boolean;
 }
 
 export default declarePreset((api, opts: Options) => {
-  api.assertVersion(REQUIRED_VERSION(7));
+  api.assertVersion(REQUIRED_VERSION("^7.0.0-0 || ^8.0.0"));
 
   const {
     development = api.env(env => env === "development"),
+    developmentSourceSelf,
     importSource,
     pragma,
     pragmaFrag,
@@ -31,22 +31,25 @@ export default declarePreset((api, opts: Options) => {
     throwIfNamespace,
   } = normalizeOptions(opts);
 
+  const pluginOptios = {
+    importSource,
+    pragma,
+    pragmaFrag,
+    runtime,
+    throwIfNamespace,
+    pure,
+  };
+
   return {
     plugins: [
-      [
-        development ? transformReactJSXDevelopment : transformReactJSX,
-
-        {
-          importSource,
-          pragma,
-          pragmaFrag,
-          runtime,
-          throwIfNamespace,
-          pure,
-        },
-      ] satisfies PluginItem,
+      development
+        ? [
+            transformReactJSXDevelopment,
+            { ...pluginOptios, sourceSelf: developmentSourceSelf },
+          ]
+        : [transformReactJSX, pluginOptios],
       transformReactDisplayName,
       pure !== false && transformReactPure,
-    ].filter(Boolean),
+    ].filter(Boolean) as PluginItem[],
   };
 });

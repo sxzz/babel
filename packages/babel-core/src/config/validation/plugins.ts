@@ -84,16 +84,14 @@ type VisitorHandler =
 export type PluginObject<S extends PluginPass = PluginPass> = {
   name?: string;
   manipulateOptions?: (
-    options: ResolvedOptions,
-    parserOpts: ParserOptions,
+    options: ResolvedOptions & { generatorOpts: GeneratorOptions },
+    parserOpts: ParserOptions & {
+      plugins: NonNullable<ParserOptions["plugins"]>;
+    },
   ) => void;
   pre?: (this: S, file: File) => void | Promise<void>;
   post?: (this: S, file: File) => void | Promise<void>;
-  inherits?: (
-    api: PluginAPI,
-    options: unknown,
-    dirname: string,
-  ) => PluginObject;
+  inherits?: (api: PluginAPI, options: any, dirname: string) => PluginObject;
   visitor?: Visitor<S>;
   parserOverride?: (
     ...args: [...Parameters<typeof parse>, typeof parse]
@@ -133,5 +131,5 @@ export function validatePluginObject(
     }
   });
 
-  return obj as any;
+  return obj;
 }

@@ -1,6 +1,6 @@
 {
   "name": "@babel/runtime",
-  "version": "7.28.4",
+  "version": "8.0.5",
   "description": "babel's modular runtime helpers",
   "license": "MIT",
   "publishConfig": {
@@ -13,6 +13,7 @@
   },
   "homepage": "https://babel.dev/docs/en/next/babel-runtime",
   "author": "The Babel Team (https://babel.dev/team)",
+  "sideEffects": false,
   "exports": {
     "./helpers/OverloadYield": {
       "node": "./helpers/OverloadYield.js",
@@ -168,11 +169,6 @@
       "node": "./helpers/createSuper.js",
       "import": "./helpers/esm/createSuper.js",
       "default": "./helpers/createSuper.js"
-    },
-    "./helpers/decorate": {
-      "node": "./helpers/decorate.js",
-      "import": "./helpers/esm/decorate.js",
-      "default": "./helpers/decorate.js"
     },
     "./helpers/defaults": {
       "node": "./helpers/defaults.js",
@@ -484,11 +480,7 @@
       "import": "./helpers/esm/writeOnlyError.js",
       "default": "./helpers/writeOnlyError.js"
     },
-    "./package": "./package.json",
     "./package.json": "./package.json"
-  },
-  "engines": {
-    "node": "^20.19.0 || >=22.12.0"
   },
   "type": "commonjs"
 }
