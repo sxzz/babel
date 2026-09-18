@@ -373,16 +373,16 @@ describe("api", function () {
           return {
             pre() {
               prereleaseHelperAvailable = this.availableHelper(
-                "decorate",
+                "toPrimitive",
                 "7.0.0-beta.0",
               );
-              stableHelperAvailable = this.availableHelper("decorate", "7.0.0");
+              stableHelperAvailable = this.availableHelper("toPrimitive", "7.0.0");
               matchingStableHelperAvailable = this.availableHelper(
-                "decorate",
+                "toPrimitive",
                 "7.1.5",
               );
               nextPrereleaseHelperAvailable = this.availableHelper(
-                "decorate",
+                "toPrimitive",
                 "9.0.0-alpha.0",
               );
             },
