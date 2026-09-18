@@ -142,7 +142,7 @@ const getCoreJSOptions = ({
   debug: boolean;
 }) => ({
   method: `${useBuiltIns}-global`,
-  version: corejs ? normalize(corejs)! : undefined,
+  version: corejs ? normalize(corejs) : undefined,
   targets: polyfillTargets,
   include,
   exclude,
